@@ -1,55 +1,43 @@
-# Mintlify Starter Kit
+# Greybeam docs
 
-Use the starter kit to get your docs deployed and ready to customize.
+Customer-facing documentation for Greybeam, built with [Mintlify](https://mintlify.com).
 
-Click the green **Use this template** button at the top of this repo to copy the Mintlify starter kit. The starter kit contains examples with
+## Layout
 
-- Guide pages
-- Navigation
-- Customizations
-- API reference pages
-- Use of popular components
-
-**[Follow the full quickstart guide](https://starter.mintlify.com/quickstart)**
-
-## AI-assisted writing
-
-Set up your AI coding tool to work with Mintlify:
-
-```bash
-npx skills add https://mintlify.com/docs
-```
-
-This command installs Mintlify's documentation skill for your configured AI tools like Claude Code, Cursor, Windsurf, and others. The skill includes component reference, writing standards, and workflow guidance.
-
-See the guides for [Claude Code](https://www.mintlify.com/docs/guides/claude-code), [Codex](https://www.mintlify.com/docs/guides/codex), [Cursor](https://www.mintlify.com/docs/guides/cursor), and [Devin Desktop](https://www.mintlify.com/docs/guides/devin-desktop) for tool-specific setup.
+| Path | Contents |
+| - | - |
+| `docs.json` | Site config and navigation |
+| `index.mdx`, `quickstart.mdx`, `get-started/` | Get started |
+| `platform/` | Greybeam platform (console walkthrough) |
+| `connect/` | Connecting dbt, BI tools, and drivers |
+| `how-it-works/` | Query routing and hydration |
+| `reference/` | Routing codes, SQL support, external tables, limitations |
+| `troubleshooting/` | Troubleshooting guides |
+| `images/`, `videos/` | Screenshots and the explainer video |
+| `motion/` | Hyperframes source for the explainer video (not published; see `motion/README.md`) |
+| `style.css` | Brand styling |
 
 ## Development
 
-Install the [Mintlify CLI](https://www.npmjs.com/package/mint) to preview your documentation changes locally. To install, use the following command:
+Install the [Mintlify CLI](https://www.npmjs.com/package/mint) and run it from the repo root:
 
-```
+```bash
 npm i -g mint
-```
-
-Run the following command at the root of your documentation, where your `docs.json` is located:
-
-```
 mint dev
 ```
 
-View your local preview at `http://localhost:3000`.
+Preview at `http://localhost:3000`. Before you push:
 
-## Publishing changes
+```bash
+mint validate
+mint broken-links
+```
 
-Install our GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app) to propagate changes from your repo to your deployment. Changes are deployed to production automatically after pushing to the default branch.
+## Writing
 
-## Need help?
+Follow `AGENTS.md` for style. Never publish internal implementation details (service names, file paths,
+internal tables) or unreleased features.
 
-### Troubleshooting
+## Publishing
 
-- If your dev environment isn't running: Run `mint update` to ensure you have the most recent version of the CLI.
-- If a page loads as a 404: Make sure you are running in a folder with a valid `docs.json`.
-
-### Resources
-- [Mintlify documentation](https://mintlify.com/docs)
+Pushes to the default branch deploy through the Mintlify GitHub app.

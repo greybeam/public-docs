@@ -1,0 +1,538 @@
+/*
+ * Greybeam docs styling. Theme: sequoia. Body: Inter. Headings: TASA Orbiter (H1/H2), Inter (H3+). Code: Geist Mono.
+ * Design rules and tokens are documented in .context/team/design-system.md. Keep the two in sync.
+ */
+@import url("https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400..600&family=TASA+Orbiter:wght@500..700&display=swap");
+
+/* ---------- Tokens ---------- */
+:root {
+  --content-width: 42rem;
+  --sidebar-width: 18.5rem;
+
+  --gb-amber: #FA9F42;
+  --gb-amber-hover: #FBB366;
+
+  /* Light mode (contrast vs #FFFFFF in comments) */
+  --gb-bg: #FFFFFF;
+  --gb-surface: #FAF9F7;
+  --gb-surface-2: #F3F1ED;
+  --gb-border: #E7E4DF;
+  --gb-border-strong: #D3CFC8;
+  --gb-text: #2E2B27;       /* 14.1:1 */
+  --gb-text-strong: #1C1A17; /* 17.4:1 */
+  --gb-text-2: #5C5850;     /* 7.1:1  secondary: sidebar, TOC, captions */
+  --gb-accent-text: #B4530A; /* 5.0:1  links-underline, active nav */
+  --gb-note: #2F67B0;
+  --gb-tip: #2F7D55;
+  --gb-warn: #B4530A;
+  --gb-danger: #B83A2A;
+  --gb-info: #6B665D;
+}
+
+/* Laptop widths: give the reading column the room, not the sidebar. */
+@media (max-width: 1360px) {
+  :root {
+    --sidebar-width: 16.5rem;
+  }
+}
+
+html.dark {
+  /* Dark mode (contrast vs #10100E in comments) */
+  --gb-bg: #10100E;
+  --gb-surface: #191815;
+  --gb-surface-2: #221F1A;
+  --gb-border: #2B2925;
+  --gb-border-strong: #3D3933;
+  --gb-text: #CFCCC6;        /* 11.9:1 */
+  --gb-text-strong: #F2F0EB; /* 16.7:1 */
+  --gb-text-2: #A9A59D;      /* 7.8:1 */
+  --gb-accent-text: #FA9F42; /* 9.2:1 */
+  --gb-note: #7FB0EA;
+  --gb-tip: #6CC497;
+  --gb-warn: #FA9F42;
+  --gb-danger: #F07A66;
+  --gb-info: #A9A59D;
+}
+
+/* ---------- Brand rule: square corners ---------- */
+*, *::before, *::after {
+  border-radius: 0 !important;
+}
+
+/* ---------- Body text ---------- */
+#content-area {
+  font-weight: 400;
+  color: var(--gb-text);
+}
+
+#content {
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--gb-text);
+}
+
+#content :is(p, [data-as="p"], li, dd, blockquote) {
+  color: var(--gb-text);
+}
+
+#content > :is(p, [data-as="p"]),
+#content :is([data-component-part="step-content"], [role="tabpanel"], details) :is(p, [data-as="p"]) {
+  display: block;
+  margin-top: 0;
+  margin-bottom: 1.1em;
+}
+
+#content :is(ul, ol) > li {
+  margin-top: 0.4em;
+  margin-bottom: 0.4em;
+  padding-left: 0.25em;
+}
+
+#content :is(ul, ol) > li::marker {
+  color: var(--gb-text-2);
+}
+
+#content :is(strong, b) {
+  color: var(--gb-text-strong);
+  font-weight: 600;
+}
+
+/* Links: readable text colour, amber underline as the accent. */
+#content a.link,
+#content :is(p, [data-as="p"], li, td) > a:not([class]) {
+  color: var(--gb-text-strong);
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: var(--gb-accent-text);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  border-bottom: 0;
+}
+
+#content a.link:hover {
+  color: var(--gb-accent-text);
+  text-decoration-thickness: 2px;
+}
+
+/* Page lead (frontmatter description) */
+#header .prose,
+#header .prose :is(p, [data-as="p"]) {
+  font-size: 18px;
+  line-height: 1.55;
+  color: var(--gb-text-2);
+}
+
+/* ---------- Headings ---------- */
+#page-title {
+  font-family: "TASA Orbiter", Inter, system-ui, sans-serif;
+  font-size: 38px;
+  line-height: 1.15;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  color: var(--gb-text-strong);
+}
+
+#content h2:not([data-component-part]) {
+  font-family: "TASA Orbiter", Inter, system-ui, sans-serif;
+  font-size: 27px;
+  line-height: 1.25;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--gb-text-strong);
+  margin-top: 2.75rem;
+  margin-bottom: 1rem;
+  padding-top: 1.75rem;
+  border-top: 1px solid var(--gb-border);
+}
+
+#content > h2:first-child {
+  margin-top: 0.5rem;
+  padding-top: 0;
+  border-top: 0;
+}
+
+#content h3:not([data-component-part]) {
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 20px;
+  line-height: 1.4;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--gb-text-strong);
+  margin-top: 2.5rem;
+  margin-bottom: 0.6rem;
+}
+
+#content h2:not([data-component-part]) + h3:not([data-component-part]) {
+  margin-top: 1.5rem;
+}
+
+#content h4:not([data-component-part]) {
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 17px;
+  line-height: 1.45;
+  font-weight: 600;
+  color: var(--gb-text-strong);
+  margin-top: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+#content :is(h2, h3, h4) code {
+  font-size: 0.85em;
+  font-weight: 500;
+  padding: 0.05em 0.3em;
+}
+
+/* Reference pages: each ### entry is a row separated by a hairline, so long lists of entries
+   (routing codes, verification checks) don't run together. The H2 above a group stays heavier. */
+html:is([data-current-path^="/reference/routing-codes"], [data-current-path^="/troubleshooting"]) #content h3:not([data-component-part]) {
+  margin-top: 2rem;
+  padding-top: 1.75rem;
+  border-top: 1px dashed var(--gb-border-strong);
+}
+
+html:is([data-current-path^="/reference/routing-codes"], [data-current-path^="/troubleshooting"]) #content h2:not([data-component-part]) {
+  margin-top: 3rem;
+  border-top: 2px solid var(--gb-border-strong);
+}
+
+html:is([data-current-path^="/reference/routing-codes"], [data-current-path^="/troubleshooting"]) #content h2:not([data-component-part]) + h3:not([data-component-part]),
+html:is([data-current-path^="/reference/routing-codes"], [data-current-path^="/troubleshooting"]) #content h2:not([data-component-part]) + :is(p, [data-as="p"]) + h3:not([data-component-part]) {
+  border-top: 0;
+  padding-top: 0;
+  margin-top: 1.75rem;
+}
+
+/* ---------- Code ---------- */
+code, pre, kbd {
+  font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace !important;
+}
+
+#content :not(pre) > code {
+  font-size: 0.875em;
+  font-weight: 450;
+  color: var(--gb-text-strong);
+  background: var(--gb-surface-2);
+  border: 1px solid var(--gb-border);
+  padding: 0.1em 0.35em;
+}
+
+#content :not(pre) > code::before,
+#content :not(pre) > code::after {
+  content: none;
+}
+
+#content .code-block,
+#content .code-group {
+  border: 1px solid var(--gb-border);
+  background: var(--gb-surface);
+}
+
+#content .code-block [data-component-part="code-block-root"] {
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+/* ---------- Callouts: calm, neutral body text, colour only on the edge and icon ---------- */
+#content .callout {
+  background: var(--gb-surface) !important;
+  border: 1px solid var(--gb-border) !important;
+  border-left: 3px solid var(--gb-callout, var(--gb-info)) !important;
+  padding: 0.9rem 1.15rem;
+  margin: 1.5rem 0;
+}
+
+#content .callout [data-component-part="callout-content"],
+#content .callout [data-component-part="callout-content"] :is(p, [data-as="p"], li, strong, a, code) {
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--gb-text) !important;
+}
+
+#content .callout [data-component-part="callout-content"] strong {
+  color: var(--gb-text-strong) !important;
+}
+
+#content .callout [data-component-part="callout-content"] > :is(p, [data-as="p"]) {
+  display: block;
+  margin: 0 0 0.5em;
+}
+
+#content .callout [data-component-part="callout-content"] > :last-child {
+  margin-bottom: 0;
+}
+
+#content .callout [data-component-part="callout-icon"] svg {
+  color: var(--gb-callout, var(--gb-info)) !important;
+  fill: currentColor;
+}
+
+#content .callout[data-callout-type="note"] { --gb-callout: var(--gb-note); }
+#content .callout[data-callout-type="tip"] { --gb-callout: var(--gb-tip); }
+#content .callout[data-callout-type="check"] { --gb-callout: var(--gb-tip); }
+#content .callout[data-callout-type="warning"] { --gb-callout: var(--gb-warn); }
+#content .callout[data-callout-type="danger"] { --gb-callout: var(--gb-danger); }
+#content .callout[data-callout-type="info"] { --gb-callout: var(--gb-info); }
+
+/* ---------- Tables ---------- */
+#content table {
+  font-size: 15px;
+  border-collapse: collapse;
+}
+
+#content th {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--gb-text-2);
+  background: var(--gb-surface);
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--gb-border-strong);
+}
+
+#content td {
+  color: var(--gb-text);
+  line-height: 1.55;
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid var(--gb-border);
+  vertical-align: top;
+}
+
+/* ---------- Steps ---------- */
+#content .steps {
+  margin-top: 1.75rem;
+}
+
+#content [data-component-part="step-indicator"] {
+  background: var(--gb-surface-2) !important;
+  border: 1px solid var(--gb-border-strong);
+  color: var(--gb-text-strong) !important;
+  font-family: "Geist Mono", ui-monospace, monospace;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+#content [data-component-part="step-line"] {
+  background: var(--gb-border) !important;
+}
+
+#content [data-component-part="step-title"] {
+  margin-bottom: 0.35rem !important;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--gb-text-strong) !important;
+}
+
+/* ---------- Tabs ---------- */
+#content [data-component-part="tabs-list"] {
+  border-bottom: 1px solid var(--gb-border) !important;
+}
+
+#content [data-component-part="tab-button"] {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--gb-text-2);
+  border-bottom-width: 2px;
+}
+
+#content [data-component-part="tab-button"][data-active="true"] {
+  color: var(--gb-text-strong);
+  border-bottom-color: var(--gb-amber);
+}
+
+/* ---------- Frames (screenshots) ---------- */
+#content .frame {
+  background: var(--gb-surface) !important;
+  border: 1px solid var(--gb-border);
+  padding: 0.5rem;
+}
+
+#content .frame > div.absolute {
+  display: none; /* drop the decorative grid behind screenshots */
+}
+
+#content .frame [data-component-part="frame-caption"],
+#content .frame + p,
+#content figcaption {
+  font-size: 14px;
+  color: var(--gb-text-2);
+}
+
+/* ---------- Cards ---------- */
+#content .card {
+  background: var(--gb-surface) !important;
+  border: 1px solid var(--gb-border) !important;
+}
+
+#content .card:hover {
+  border-color: var(--gb-amber) !important;
+}
+
+#content [data-component-part="card-title"] {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--gb-text-strong) !important;
+}
+
+#content [data-component-part="card-content"],
+#content [data-component-part="card-content"] :is(p, [data-as="p"]) {
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--gb-text-2) !important;
+}
+
+#content [data-component-part="card-icon"] {
+  color: var(--gb-accent-text) !important;
+  fill: var(--gb-accent-text) !important;
+}
+
+/* ---------- Accordions ---------- */
+#content details,
+#content [data-component-part="accordion"] {
+  border-color: var(--gb-border) !important;
+}
+
+#content summary,
+#content [data-component-part="accordion-title"] {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--gb-text-strong);
+}
+
+/* ---------- Mermaid diagrams ---------- */
+#content [data-component-name="mermaid-container"] {
+  border: 1px solid var(--gb-border);
+  background: var(--gb-surface);
+  padding: 1rem;
+  margin: 1.5rem 0 2rem;
+}
+
+/* ---------- Left sidebar ---------- */
+#sidebar-content {
+  border-color: var(--gb-border) !important;
+}
+
+#sidebar-content .sidebar-group-header {
+  margin-bottom: 0.4rem;
+}
+
+#sidebar-content .sidebar-title,
+#sidebar-content .sidebar-title span {
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--gb-text-strong) !important;
+}
+
+#sidebar-content #navigation-items > div > div > div > div + div {
+  margin-top: 1.75rem;
+}
+
+#sidebar-content li[data-title] > a {
+  padding-top: 0.4rem;
+  padding-bottom: 0.4rem;
+  border-left: 2px solid transparent;
+}
+
+#sidebar-content li[data-title] > a span {
+  font-size: 15px;
+  line-height: 1.4;
+  font-weight: 400;
+  color: var(--gb-text-2);
+}
+
+#sidebar-content li[data-title] > a:hover span {
+  color: var(--gb-text-strong);
+}
+
+#sidebar-content li[data-title] > a svg {
+  background-color: var(--gb-text-2);
+}
+
+#sidebar-content li[data-active="true"] > a {
+  background: color-mix(in srgb, var(--gb-amber) 9%, transparent);
+  border-left-color: var(--gb-amber);
+}
+
+#sidebar-content li[data-active="true"] > a span {
+  color: var(--gb-accent-text);
+  font-weight: 500;
+}
+
+#sidebar-content li[data-active="true"] > a svg {
+  background-color: var(--gb-accent-text);
+}
+
+/* ---------- Right "On this page" TOC ---------- */
+#table-of-contents {
+  font-size: 14px;
+}
+
+#table-of-contents [data-layout-item="toc-title"],
+#table-of-contents [data-layout-item="toc-title"] * {
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--gb-text-strong);
+}
+
+#table-of-contents-content {
+  border-left: 1px solid var(--gb-border);
+}
+
+#table-of-contents .toc-item {
+  margin-left: -1px;
+  border-left: 2px solid transparent;
+  padding-left: 0.85rem;
+}
+
+#table-of-contents .toc-item[data-active-deepest="true"] {
+  border-left-color: var(--gb-amber);
+}
+
+#table-of-contents .toc-item a {
+  font-size: 14px;
+  line-height: 1.4;
+  padding-top: 0.3rem;
+  padding-bottom: 0.3rem;
+  color: var(--gb-text-2);
+}
+
+#table-of-contents .toc-item[data-depth="1"] a {
+  font-size: 13.5px;
+}
+
+#table-of-contents .toc-item a:hover {
+  color: var(--gb-text-strong);
+}
+
+#table-of-contents .toc-item[data-active="true"] > a {
+  color: var(--gb-accent-text);
+  font-weight: 400;
+}
+
+/* ---------- Navbar ---------- */
+#navbar #search-bar-entry {
+  height: 2.25rem;
+  width: 18rem;
+  background: var(--gb-surface);
+  border: 1px solid var(--gb-border);
+}
+
+#navbar #search-bar-entry [data-search-item="trigger-label"] {
+  font-size: 14px;
+  color: var(--gb-text-2);
+}
+
+#navbar a[href*="admin.greybeam.ai"] {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 0.45rem 0.9rem;
+}
+
+html.dark #navbar a[href*="admin.greybeam.ai"] {
+  color: #10100E;
+}

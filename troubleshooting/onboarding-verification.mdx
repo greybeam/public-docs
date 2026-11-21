@@ -1,0 +1,379 @@
+---
+title: "Onboarding verification errors"
+description: "Find the error from the onboarding wizard, see what it means, and fix it."
+sidebarTitle: "Onboarding verification"
+icon: "clipboard-check"
+---
+
+The [onboarding wizard](/get-started/onboarding) runs checks on your Snowflake and AWS setup. Search this page for the error message you see. Each section is one check, in wizard order.
+
+Each check stops at the first failure and shows one message. Fix it, then run the verification again. Placeholders in the messages below, such as `<role>`, show your own values.
+
+Cleanup steps are the exception. After a check, Greybeam attempts to drop its test tables, stage, file format, and Iceberg table, and to remove its test files. If one of these cleanup steps fails, verification continues and the check isn't blocked, so this page doesn't list those messages. The direct S3 check is different: it confirms the test file was deleted, and it can fail.
+
+## Connection test
+
+- **Wizard step:** Connection.
+- **What it checks:** Greybeam can open a Snowflake session with the account, user, key, role, warehouse, and database you entered.
+- **Role usually needed:** `SECURITYADMIN` for network policies, `USERADMIN` for users and roles.
+
+### Failed to save credentials, or Connection failed
+
+```text wrap
+Failed to save credentials
+Connection failed
+```
+
+**Cause:** one of these.
+
+- A wrong **Snowflake account**, **Username**, **Role**, **Warehouse**, or **Database** value. The defaults are `GREYBEAM_USER`, `GREYBEAM_ROLE`, `GREYBEAM_WH`, and `GREYBEAM_DB`.
+- The **Private key (PEM format)** doesn't match the public key set on the Greybeam user, or the **Private key passphrase** is wrong.
+- A Snowflake network policy blocks Greybeam. This is the most common cause. Complete the **Network Access** step and make sure the Greybeam IP addresses it shows are allowed.
+
+**Fix:** re-run the **Snowflake Setup** scripts if the user or role is missing. For the network policy, run the script from the **Network Access** step, or add the Greybeam IP addresses to your existing policy.
+
+```sql
+USE ROLE SECURITYADMIN;
+ALTER USER <greybeam_user> SET NETWORK_POLICY = <network_policy_name>;
+```
+
+### An error message from Snowflake
+
+A failed login shows the error text from Snowflake instead of the messages above. The causes and fixes above apply.
+
+## Database and CDC schemas
+
+- **Wizard step:** Verify Snowflake, check **Database & CDC schemas**.
+- **What it checks:** the Greybeam role can use the Greybeam database, owns its `CDC_STREAMS` and `STAGES` schemas, and can create and drop tables in both.
+- **Role usually needed:** `SYSADMIN` to create the database, `SECURITYADMIN` to grant ownership.
+
+### Cannot access database or schema
+
+```text wrap
+Cannot access database '<database>'. Either it doesn't exist, or role '<role>' doesn't have access. Fixing this usually requires SYSADMIN to create the database or grant USAGE.
+
+Cannot access schema 'CDC_STREAMS' in database '<database>'. Either the schema doesn't exist, or role '<role>' doesn't have access. Fixing this usually requires SECURITYADMIN to grant ownership or SYSADMIN to create the schema.
+
+Cannot access schema 'STAGES' in database '<database>'. Either the schema doesn't exist, or role '<role>' doesn't have access. Fixing this usually requires SECURITYADMIN to grant ownership or SYSADMIN to create the schema.
+```
+
+**Cause:** the database or schemas don't exist, or the Greybeam role has no access to them.
+
+**Fix:** in the wizard, copy the complete **Create Database & CDC Schemas** script from the **Snowflake Setup** step and run it, then verify again. The wizard's script, which also grants table privileges, replaces the placeholders with your values. Its database, ownership, and schema statements look like this:
+
+```sql
+USE ROLE SYSADMIN;
+CREATE DATABASE IF NOT EXISTS <database>;
+
+USE ROLE SECURITYADMIN;
+GRANT OWNERSHIP ON DATABASE <database> TO ROLE <greybeam_role>;
+
+USE ROLE <greybeam_role>;
+USE DATABASE <database>;
+CREATE SCHEMA IF NOT EXISTS CDC_STREAMS;
+GRANT OWNERSHIP ON SCHEMA CDC_STREAMS TO ROLE <greybeam_role>;
+
+USE ROLE <greybeam_role>;
+USE DATABASE <database>;
+CREATE SCHEMA IF NOT EXISTS STAGES;
+GRANT OWNERSHIP ON SCHEMA STAGES TO ROLE <greybeam_role>;
+```
+
+### Role doesn't own a schema
+
+```text wrap
+Role '<role>' doesn't own schema 'CDC_STREAMS'. Greybeam needs OWNERSHIP to create objects. Ask your admin (SECURITYADMIN) to transfer ownership.
+
+Role '<role>' doesn't own schema 'STAGES'. Greybeam needs OWNERSHIP to create objects. Ask your admin (SECURITYADMIN) to transfer ownership.
+```
+
+**Cause:** a different role owns the schemas.
+
+**Fix:** ask your admin to transfer ownership of both schemas to `<greybeam_role>`.
+
+### Cannot create tables in a schema
+
+```text wrap
+Cannot create tables in schema 'CDC_STREAMS'. Role '<role>' needs OWNERSHIP or CREATE TABLE privilege. Fixing this usually requires SECURITYADMIN to grant ownership or CREATE TABLE.
+
+Cannot create tables in schema 'STAGES'. Role '<role>' needs OWNERSHIP or CREATE TABLE privilege. Fixing this usually requires SECURITYADMIN to grant ownership or CREATE TABLE.
+```
+
+**Cause:** the Greybeam role lacks `CREATE TABLE`, or doesn't own the schema.
+
+**Fix:** run the **Create Database & CDC Schemas** script from the **Snowflake Setup** step, or have your admin grant ownership or `CREATE TABLE`.
+
+## Metadata access
+
+- **Wizard step:** Verify Snowflake, check **Metadata access**.
+- **What it checks:** the Greybeam role can read Snowflake usage metadata and monitor your warehouse.
+- **Role usually needed:** `ACCOUNTADMIN`.
+
+### Cannot access Snowflake metadata or warehouse credit metering
+
+```text wrap
+Cannot access Snowflake metadata (ACCOUNT_USAGE). Role '<role>' needs IMPORTED PRIVILEGES on the SNOWFLAKE database. This requires ACCOUNTADMIN to run the Metadata Access script.
+
+Cannot access Snowflake warehouse credit metering (ACCOUNT_USAGE.WAREHOUSE_METERING_HISTORY). Role '<role>' needs IMPORTED PRIVILEGES on the SNOWFLAKE database. This requires ACCOUNTADMIN to run the Metadata Access script.
+```
+
+**Cause:** the Metadata Access grants haven't been run.
+
+**Fix:** run the **Metadata Access** script from the **Snowflake Setup** step, then verify again.
+
+```sql
+USE ROLE ACCOUNTADMIN;
+GRANT IMPORTED PRIVILEGES ON DATABASE SNOWFLAKE TO ROLE <greybeam_role>;
+GRANT MONITOR USAGE ON ACCOUNT TO ROLE <greybeam_role>;
+GRANT MONITOR ON WAREHOUSE <warehouse> TO ROLE <greybeam_role>;
+```
+
+### Cannot monitor warehouse
+
+```text wrap
+Cannot monitor warehouse '<warehouse>'. Role '<role>' needs warehouse monitoring access. Fixing this usually requires ACCOUNTADMIN to run the Metadata Access script or the role that manages warehouse grants.
+```
+
+**Cause:** the Metadata Access grants haven't been run.
+
+**Fix:** run the **Metadata Access** script from the entry above.
+
+### Current warehouse doesn't match expected
+
+```text wrap
+Current warehouse doesn't match expected '<warehouse>'. Fixing this usually requires updating the connection settings or asking the role that manages warehouse grants to verify access.
+```
+
+**Cause:** the **Warehouse** value on the **Connection** step doesn't match the warehouse the role can use.
+
+**Fix:** correct the **Warehouse** field on the **Connection** step.
+
+## Available objects
+
+- **Wizard step:** Verify Snowflake, check **Available objects**.
+- **What it checks:** Greybeam can see the tables and views in your Snowflake account. The wizard lists them under **Visible objects**.
+- **Role usually needed:** `SECURITYADMIN`, or the role that manages grants on your production data.
+
+Databases the role can't access are skipped, and `INFORMATION_SCHEMA` objects aren't listed. This check fails when nothing is visible at all.
+
+### No visible objects were returned
+
+```text wrap
+No visible objects were returned.
+
+Failed to load available objects: <details>
+```
+
+**Cause:** the Greybeam role has no read access to your production data.
+
+**Fix:** run the **Production Table Access** script from the **Snowflake Setup** step. Either grant the Greybeam role your BI tool's role, or grant read access to specific databases and schemas.
+
+```sql
+USE ROLE SECURITYADMIN;
+
+-- Option A: reuse your BI tool's role
+GRANT ROLE <bi_tool_role> TO ROLE <greybeam_role>;
+
+-- Option B: grant access directly
+GRANT USAGE ON DATABASE <database> TO ROLE <greybeam_role>;
+GRANT USAGE ON ALL SCHEMAS IN DATABASE <database> TO ROLE <greybeam_role>;
+GRANT SELECT ON ALL TABLES IN DATABASE <database> TO ROLE <greybeam_role>;
+GRANT SELECT ON FUTURE TABLES IN DATABASE <database> TO ROLE <greybeam_role>;
+GRANT SELECT ON ALL VIEWS IN DATABASE <database> TO ROLE <greybeam_role>;
+GRANT SELECT ON FUTURE VIEWS IN DATABASE <database> TO ROLE <greybeam_role>;
+```
+
+Tables Greybeam can't see show as untracked later. See [Objects Explorer](/platform/objects-explorer).
+
+## Storage integration
+
+- **Wizard step:** Verify S3 Setup, check **Storage integration**.
+- **What it checks:** the Greybeam role can use the `GREYBEAM_HYDRATION_S3_INTEGRATION` storage integration, and Snowflake can write to and list files in your S3 location through it.
+- **Role usually needed:** `ACCOUNTADMIN` for the integration, `SECURITYADMIN` for schema privileges.
+
+### Cannot access database or schema for the stage test
+
+```text wrap
+Cannot access database '<database>'.
+
+Cannot access schema '<schema>' in database '<database>'.
+```
+
+**Cause:** the Greybeam role can't use the database or schema the test runs in.
+
+**Fix:** fix the [Database and CDC schemas](#database-and-cdc-schemas) check first, then verify again.
+
+### Cannot create file format, or Cannot write to stage
+
+```text wrap
+Cannot create file format in <database>.<schema>. Role '<role>' may not have CREATE FILE FORMAT privilege.
+
+Cannot write to stage. Role '<role>' may not have CREATE STAGE privilege in <database>.<schema> schema. Fixing this usually requires SECURITYADMIN to grant the privilege or transfer ownership.
+```
+
+**Cause:** the role lacks `CREATE FILE FORMAT` or `CREATE STAGE` in the `STAGES` schema.
+
+**Fix:** fix the [Database and CDC schemas](#database-and-cdc-schemas) check first. Then have `SECURITYADMIN` grant the privilege or transfer ownership, and verify again.
+
+### Cannot create stage with storage integration
+
+```text wrap
+Cannot create stage with storage integration. Either GREYBEAM_HYDRATION_S3_INTEGRATION doesn't exist, or role '<role>' doesn't have USAGE privilege on it. Fixing this usually requires ACCOUNTADMIN.
+```
+
+**Cause:** the integration doesn't exist, or the Greybeam role has no `USAGE` on it.
+
+**Fix:** run the **Storage Integration** script from the **Snowflake Setup** step, then save the values it returns in the wizard.
+
+```sql
+USE ROLE ACCOUNTADMIN;
+GRANT USAGE ON INTEGRATION GREYBEAM_HYDRATION_S3_INTEGRATION TO ROLE <greybeam_role>;
+DESC INTEGRATION GREYBEAM_HYDRATION_S3_INTEGRATION;
+```
+
+### The verification stage was not empty
+
+```text wrap
+The verification stage was not empty before data was written. Greybeam expected a clean S3 prefix for this storage integration test.
+```
+
+**Cause:** the check found files in its test location before it wrote anything.
+
+**Fix:** share the check name (**Storage integration**) and this exact error in your shared Slack channel with Greybeam.
+
+### No files were visible after writing test data
+
+```text wrap
+Snowflake created the verification stage, but no files were visible after writing test data to it.
+```
+
+**Cause:** the check wrote test data to the stage, then listed the stage and found no files.
+
+**Fix:** share the check name (**Storage integration**) and this exact error in your shared Slack channel with Greybeam.
+
+### Cannot find or describe the test stage
+
+```text wrap
+Cannot find the test stage after creation.
+
+Cannot describe the test stage.
+```
+
+**Cause:** the check created the test stage, then couldn't find or describe it.
+
+**Fix:** share the check name (**Storage integration**) and this exact error in your shared Slack channel with Greybeam.
+
+## External volume
+
+- **Wizard step:** Verify S3 Setup, check **External volume**.
+- **What it checks:** the Greybeam role can use the `GREYBEAM_HYDRATION_S3_EXTERNAL_VOLUME` external volume, and Snowflake can create, write, update, and delete an Iceberg table through it.
+- **Role usually needed:** `ACCOUNTADMIN`, plus an AWS administrator for bucket permissions.
+
+### Cannot access database or schema for the Iceberg table test
+
+```text wrap
+Cannot access database '<database>'.
+
+Cannot access schema '<schema>' in database '<database>'.
+```
+
+**Cause:** the Greybeam role can't use the database or schema the test runs in.
+
+**Fix:** fix the [Database and CDC schemas](#database-and-cdc-schemas) check first, then verify again.
+
+### Cannot create Iceberg table with external volume
+
+```text wrap
+Cannot create Iceberg table with external volume. Either GREYBEAM_HYDRATION_S3_EXTERNAL_VOLUME doesn't exist, or role '<role>' doesn't have USAGE privilege on it. Fixing this usually requires ACCOUNTADMIN.
+```
+
+**Cause:** the external volume doesn't exist, or the Greybeam role has no `USAGE` on it.
+
+**Fix:** run the **External Volume** script from the **Snowflake Setup** step. It creates the volume with writes allowed and grants usage.
+
+```sql
+USE ROLE ACCOUNTADMIN;
+GRANT USAGE ON EXTERNAL VOLUME GREYBEAM_HYDRATION_S3_EXTERNAL_VOLUME TO ROLE <greybeam_role>;
+```
+
+### Cannot insert into Iceberg table
+
+```text wrap
+Cannot insert into Iceberg table. The external volume may not have write access to S3. Fixing this usually requires an AWS administrator and may also require ACCOUNTADMIN to review the external volume definition.
+```
+
+**Cause:** the volume doesn't allow writes, or its AWS role can't write to the bucket.
+
+**Fix:** have an AWS administrator check the role's S3 permissions and trust policy. Run the **External Volume** script above if the volume was created without writes allowed.
+
+### Other Iceberg table errors
+
+```text wrap
+Cannot find the test Iceberg table after creation.
+
+Cannot describe the test Iceberg table.
+
+The external volume verification table did not contain the expected rows after the insert step.
+
+Cannot update Iceberg table rows.
+
+The external volume verification table did not persist the updated values.
+
+Cannot delete from Iceberg table.
+```
+
+**Cause:** the check created a test Iceberg table, then one step on it failed or returned unexpected data. Each message names the step.
+
+**Fix:** share the check name (**External volume**) and this exact error in your shared Slack channel with Greybeam.
+
+## S3 bucket access
+
+- **Wizard step:** Verify S3 Setup, check **S3 bucket access**.
+- **What it checks:** Greybeam itself can write, read, list, and delete a test file in your S3 bucket. This check doesn't go through Snowflake.
+- **Role usually needed:** AWS-side permissions. An AWS administrator makes this change.
+
+### S3 bucket name is required
+
+```text wrap
+S3 bucket name is required for this check. Fixing this usually requires an AWS administrator.
+```
+
+**Cause:** the bucket name is missing or doesn't match the one in the wizard.
+
+**Fix:** if you use a custom bucket, make sure the wizard shows the same bucket name.
+
+### Cannot write, read, list, or delete in the S3 bucket
+
+```text wrap
+Cannot write to S3 bucket '<bucket>'. Check that the IAM role has s3:PutObject permission. Error: <details>
+
+Cannot read from S3 bucket '<bucket>'. Check that the IAM role has s3:GetObject permission. Error: <details>
+
+S3 list command failed for bucket '<bucket>'. Error: <details>
+
+Cannot list objects in S3 bucket '<bucket>'. Check that the IAM role has s3:ListBucket permission.
+
+Cannot delete objects from S3 bucket '<bucket>'. Check that the IAM role has s3:DeleteObject permission. Error: <details>
+```
+
+**Cause:** the AWS configuration from the **S3 Setup** step isn't applied, or the IAM role is missing one of `s3:PutObject`, `s3:GetObject`, `s3:ListBucket`, or `s3:DeleteObject`.
+
+**Fix:** apply the Terraform from the **S3 Setup** step in your AWS account. Then check that the IAM role allows those four actions on the bucket and its objects.
+
+### Other S3 errors
+
+```text wrap
+Cannot reliably read back objects from S3 bucket '<bucket>'. The downloaded file contents did not match the uploaded test file.
+
+Cannot fully clean up objects in S3 bucket '<bucket>'. The uploaded verification file still exists after deletion.
+
+S3 access test failed: <details>
+```
+
+**Cause:** the first message means the file Greybeam read back differed from the file it uploaded. The second means the test file was still listed after Greybeam deleted it. The third is an unexpected error during the check.
+
+**Fix:** share the check name (**S3 bucket access**) and this exact error in your shared Slack channel with Greybeam.
+
+<Note>
+If you're still stuck, ask in your shared Slack channel with the error text and the check name.
+</Note>

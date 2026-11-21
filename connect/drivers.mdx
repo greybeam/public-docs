@@ -1,0 +1,130 @@
+---
+title: "Drivers"
+description: "Point supported Snowflake drivers and command-line tools at your Greybeam compute endpoint."
+icon: "plug"
+---
+
+Connecting a Snowflake driver to Greybeam is a host change. Your users, roles, warehouses, and authentication stay the same.
+
+## Supported drivers
+
+The compute endpoint is a Snowflake-compatible API. Greybeam recognizes clients built on these Snowflake drivers:
+
+- Snowflake Connector for Python
+- JDBC
+- Go
+- Node.js
+
+SnowSQL and the Snowflake CLI are built on the Python connector, so they work too. MCP servers and AI tools work if they use one of these drivers. Clients that use other drivers, including ODBC, aren't supported.
+
+## Before you start
+
+- Find your compute endpoint in the Greybeam platform under **Settings**. See [Find your compute endpoint](/get-started/compute-endpoint). It looks like `<account_locator>.<customer_name>.compute.greybeam.ai`.
+- Make sure your network allows the client to reach that host. A blocked network is the most common reason a client can't connect.
+- Keep your existing Snowflake account identifier, user, role, warehouse, and credentials.
+
+## Set the host
+
+Replace `<compute-endpoint>` with your compute endpoint and `<account_identifier>` with your existing Snowflake account identifier.
+
+<Tabs>
+  <Tab title="Python">
+    Set `host` on the Snowflake Connector for Python. Keep `account`.
+
+    ```python
+    import snowflake.connector
+
+    conn = snowflake.connector.connect(
+        account="<account_identifier>",
+        host="<compute-endpoint>",
+        user="<user>",
+        password="<password>",
+        warehouse="<warehouse>",
+        role="<role>",
+    )
+    ```
+  </Tab>
+  <Tab title="JDBC">
+    Put the compute endpoint in the connection URL where the Snowflake host normally goes.
+
+    ```text
+    jdbc:snowflake://<compute-endpoint>/
+    ```
+
+  </Tab>
+  <Tab title="Go">
+    Set `Host` in `gosnowflake.Config`. Keep `Account`.
+
+    ```go
+    cfg := &gosnowflake.Config{
+        Account:   "<account_identifier>",
+        Host:      "<compute-endpoint>",
+        User:      "<user>",
+        Password:  "<password>",
+        Warehouse: "<warehouse>",
+        Role:      "<role>",
+    }
+    dsn, err := gosnowflake.DSN(cfg)
+    ```
+  </Tab>
+  <Tab title="Node.js">
+    Set `host` in the connection options. Keep `account`.
+
+    ```javascript
+    const connection = snowflake.createConnection({
+      account: "<account_identifier>",
+      host: "<compute-endpoint>",
+      username: "<user>",
+      password: "<password>",
+      warehouse: "<warehouse>",
+      role: "<role>",
+    });
+    ```
+  </Tab>
+  <Tab title="SnowSQL">
+    Pass `--host`, or set the `SNOWSQL_HOST` environment variable.
+
+    ```bash
+    snowsql -a <account_identifier> -u <user> --host <compute-endpoint>
+    ```
+  </Tab>
+  <Tab title="Snowflake CLI">
+    Set `host` on the connection in `config.toml`, or override it per command with `--host`.
+
+    ```bash
+    snow connection add --connection-name greybeam \
+      --account <account_identifier> --user <user> --host <compute-endpoint>
+    snow sql -c greybeam -q "select current_user()"
+    ```
+  </Tab>
+</Tabs>
+
+## Confirm it worked
+
+<Steps>
+  <Step title="Run a query">
+    Connect with the new host and run a query against a table you've hydrated.
+  </Step>
+  <Step title="Find it in query history">
+    Open **Home** in the Greybeam platform. Your query appears with a routing code that shows where it ran. See [Query history](/platform/query-history).
+  </Step>
+</Steps>
+
+If the query doesn't appear, the client is probably still connecting to Snowflake or your network is blocking the compute endpoint.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="BI tools" icon="chart-line" href="/connect/bi-tools">
+    Connect Looker, Sigma, and other BI tools.
+  </Card>
+  <Card title="dbt" icon="diagram-project" href="/connect/dbt">
+    Run dbt through Greybeam (private beta).
+  </Card>
+  <Card title="Routing codes" icon="list" href="/reference/routing-codes">
+    Every code and what it means.
+  </Card>
+  <Card title="Limitations" icon="triangle-exclamation" href="/reference/limitations">
+    What DuckDB doesn't support.
+  </Card>
+</CardGroup>

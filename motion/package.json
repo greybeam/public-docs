@@ -1,0 +1,26 @@
+{
+  "name": "greybeam-docs-motion",
+  "version": "2.0.0",
+  "description": "\"How Greybeam works\" explainer video for the docs Introduction page (HyperFrames)",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "node scripts/hf.mjs preview",
+    "check": "node scripts/hf.mjs check",
+    "snapshot": "node scripts/hf.mjs snapshot",
+    "render": "node scripts/render.mjs"
+  },
+  "devDependencies": {
+    "@ffprobe-installer/ffprobe": "2.1.2",
+    "ffmpeg-static": "5.3.0",
+    "hyperframes": "0.9.72"
+  },
+  "allowScripts": {
+    "ffmpeg-static@5.3.0": true,
+    "@ffprobe-installer/darwin-arm64@5.0.1": true
+  }
+}

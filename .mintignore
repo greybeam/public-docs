@@ -5,3 +5,8 @@
 # Draft content
 drafts/
 *.draft.mdx
+
+# Non-docs source
+AGENTS.md
+.context/
+motion/
