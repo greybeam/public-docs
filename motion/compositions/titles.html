@@ -1,0 +1,101 @@
+<!-- Step titles. One clip per step; timing in seconds (frame / 30). -->
+<template>
+  <style>
+    @font-face {
+      font-family: "Satoshi";
+      src: url("https://cdn.fontshare.com/wf/P2LQKHE6KA6ZP4AAGN72KDWMHH6ZH3TA/ZC32TK2P7FPS5GFTL46EU6KQJA24ZYDB/7AHDUZ4A7LFLVFUIFSARGIWCRQJHISQP.woff2")
+        format("woff2");
+      font-weight: 500;
+      font-style: normal;
+    }
+    #root {
+      position: absolute;
+      inset: 0;
+    }
+    .title {
+      position: absolute;
+      left: 120px;
+      top: 84px;
+    }
+    .title-body {
+      opacity: 0;
+    }
+    .title-head {
+      font-family: "TASA Orbiter", sans-serif;
+      font-weight: 600;
+      font-size: 66px;
+      line-height: 1.1;
+      letter-spacing: -0.01em;
+      color: #FFFFF0;
+      white-space: nowrap;
+    }
+    .title-sub {
+      margin-top: 14px;
+      font-family: "Satoshi", "Inter", sans-serif;
+      font-weight: 500;
+      font-size: 38px;
+      color: #A0A0A0;
+      white-space: nowrap;
+    }
+  </style>
+  <div id="root" data-composition-id="titles" data-width="1920" data-height="1080">
+    <div id="t-connect" class="title clip" data-start="0" data-duration="3.3333" data-track-index="0">
+      <div class="title-body">
+        <div class="title-head">Connect to your compute endpoint</div>
+        <div class="title-sub">Nothing else changes.</div>
+      </div>
+    </div>
+    <div id="t-duckdb" class="title clip" data-start="3.3333" data-duration="3.8333" data-track-index="0">
+      <div class="title-body">
+        <div class="title-head">Eligible queries run on DuckDB</div>
+        <div class="title-sub">Greybeam inspects every query.</div>
+      </div>
+    </div>
+    <div id="t-snowflake" class="title clip" data-start="7.1667" data-duration="3.8333" data-track-index="0">
+      <div class="title-body">
+        <div class="title-head">Everything else runs on your Snowflake</div>
+        <div class="title-sub">Like writes or unsupported features.</div>
+      </div>
+    </div>
+    <div id="t-fallback" class="title clip" data-start="11" data-duration="5.6667" data-track-index="0">
+      <div class="title-body">
+        <div class="title-head">Automatic fallback to Snowflake</div>
+        <div class="title-sub">If DuckDB hits a problem, your client still gets its answer.</div>
+      </div>
+    </div>
+    <div id="t-hydration" class="title clip" data-start="16.6667" data-duration="2.5" data-track-index="0">
+      <div class="title-body">
+        <div class="title-head">Hydration keeps DuckDB current</div>
+        <div class="title-sub">Tables replicate to your S3 and are cached for speed.</div>
+      </div>
+    </div>
+    <div id="t-codes" class="title clip" data-start="19.1667" data-duration="2.6667" data-track-index="0">
+      <div class="title-body">
+        <div class="title-head">Every query gets a routing code</div>
+        <div class="title-sub">See where it ran and why.</div>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      const { span, EASE_OUT, EASE_IN_OUT } = window.GB;
+      const tl = gsap.timeline({ paused: true });
+      // [id, startFrame, endFrame] — must match each clip's data-start / data-duration.
+      const TITLES = [
+        ["t-connect", 0, 100],
+        ["t-duckdb", 100, 215],
+        ["t-snowflake", 215, 330],
+        ["t-fallback", 330, 500],
+        ["t-hydration", 500, 575],
+        ["t-codes", 575, 655],
+      ];
+      for (const [id, a, b] of TITLES) {
+        const body = `#${id} .title-body`;
+        span(tl, body, a, a + 12, { opacity: 0 }, { opacity: 1 }, EASE_OUT);
+        span(tl, body, a, a + 16, { y: 14 }, { y: 0 }, EASE_OUT);
+        span(tl, body, b - 10, b, { opacity: 1 }, { opacity: 0 }, EASE_IN_OUT);
+      }
+      window.__timelines["titles"] = tl;
+    })();
+  </script>
+</template>

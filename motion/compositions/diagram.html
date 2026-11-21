@@ -1,0 +1,733 @@
+<!--
+  The diagram: clients → compute endpoint → Greybeam → DuckDB / Snowflake,
+  plus hydration and the routing-code log. Layout is fixed pixels on the 1920×1080 canvas;
+  the story (which query goes where, and when) is the QUERIES table in the script.
+-->
+<template>
+  <style>
+    @font-face {
+      font-family: "Satoshi";
+      src: url("https://cdn.fontshare.com/wf/P2LQKHE6KA6ZP4AAGN72KDWMHH6ZH3TA/ZC32TK2P7FPS5GFTL46EU6KQJA24ZYDB/7AHDUZ4A7LFLVFUIFSARGIWCRQJHISQP.woff2")
+        format("woff2");
+      font-weight: 500;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: "Satoshi";
+      src: url("https://cdn.fontshare.com/wf/LAFFD4SDUCDVQEXFPDC7C53EQ4ZELWQI/PXCT3G6LO6ICM5I3NTYENYPWJAECAWDD/GHM6WVH6MILNYOOCXHXB5GTSGNTMGXZR.woff2")
+        format("woff2");
+      font-weight: 700;
+      font-style: normal;
+    }
+    #root {
+      position: absolute;
+      inset: 0;
+      font-family: "Satoshi", "Inter", sans-serif;
+    }
+    .layer {
+      position: absolute;
+      inset: 0;
+    }
+    .mono {
+      font-family: "Geist Mono", monospace;
+    }
+
+    /* Clients */
+    .client {
+      position: absolute;
+      left: 120px;
+      width: 380px;
+      height: 104px;
+      background: #191815;
+      border: 2px solid #2B2925;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      padding-left: 18px;
+    }
+    .client-icon {
+      width: 64px;
+      height: 64px;
+      background: #221F1A;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .client-label {
+      font-weight: 500;
+      font-size: 38px;
+      color: #E5E5E5;
+    }
+    .bars {
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+      height: 34px;
+    }
+    .bars div {
+      width: 9px;
+      background: #D4D4D4;
+    }
+    .prompt {
+      font-weight: 700;
+      font-size: 28px;
+      color: #D4D4D4;
+      letter-spacing: -0.04em;
+    }
+
+    /* Compute endpoint + Greybeam */
+    .centered-row {
+      position: absolute;
+      left: 0;
+      width: 1920px;
+      display: flex;
+      justify-content: center;
+    }
+    #ghost-host {
+      position: relative;
+      font-weight: 500;
+      font-size: 30px;
+      color: #A0A0A0;
+      white-space: nowrap;
+      opacity: 0;
+    }
+    #ghost-strike {
+      position: absolute;
+      left: -6px;
+      top: 52%;
+      width: calc(100% + 12px);
+      height: 3px;
+      background: #A0A0A0;
+    }
+    #endpoint {
+      height: 56px;
+      display: flex;
+      align-items: center;
+      padding: 0 22px;
+      background: #231B12;
+      border: 2px solid #563B1E;
+      font-weight: 500;
+      font-size: 30px;
+      color: #E5E5E5;
+      white-space: nowrap;
+    }
+    #endpoint-stem {
+      position: absolute;
+      left: 959px;
+      top: 378px;
+      width: 2px;
+      height: 52px;
+      background: #563B1E;
+    }
+    #gb-node {
+      position: absolute;
+      left: 750px;
+      top: 430px;
+      width: 420px;
+      height: 180px;
+      background: #221F1A;
+      border: 2px solid #57534C;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    #gb-scan {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: -120px;
+      width: 120px;
+      background: linear-gradient(90deg, transparent, #34312C 85%, #A0A0A0);
+      opacity: 0;
+    }
+    #gb-wordmark {
+      position: relative;
+      font-family: "TASA Orbiter", sans-serif;
+      font-weight: 500;
+      font-size: 68px;
+      line-height: 1;
+      color: #D4D4D4;
+      letter-spacing: -0.01em;
+    }
+    .verdict {
+      position: absolute;
+      left: 0;
+      width: 1920px;
+      top: 632px;
+      text-align: center;
+      font-weight: 500;
+      font-size: 32px;
+      color: #D4D4D4;
+      white-space: nowrap;
+      opacity: 0;
+    }
+
+    /* Engines */
+    .engine {
+      position: absolute;
+      left: 1340px;
+      width: 460px;
+      height: 120px;
+      background: #191815;
+      border: 2px solid #2B2925;
+      display: flex;
+      align-items: center;
+      gap: 22px;
+      padding-left: 24px;
+    }
+    .engine-logo {
+      width: 64px;
+      height: 64px;
+      flex: none;
+    }
+    /* DuckDB's mark is a near-black disc; a ring keeps it visible on the dark card. */
+    .duck-ring {
+      border-radius: 50%;
+      box-shadow: 0 0 0 2px #5A5550;
+    }
+    .engine-title {
+      font-weight: 700;
+      font-size: 40px;
+      color: #FFFFF0;
+      line-height: 1.1;
+    }
+    .engine-sub {
+      margin-top: 4px;
+      font-weight: 500;
+      font-size: 30px;
+      color: #A0A0A0;
+    }
+    .engine-bar {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: 100%;
+      height: 6px;
+      background: #FA9F42;
+      opacity: 0;
+    }
+    #duck-error {
+      position: absolute;
+      right: 16px;
+      top: -22px;
+      padding: 4px 12px;
+      font-weight: 700;
+      font-size: 28px;
+      color: #10100E;
+      background: #F06A5F;
+      opacity: 0;
+    }
+    /* Hydration: Snowflake → Your S3 (replicate) → DuckDB (cache), along x = 1570. */
+    #s3-row {
+      position: absolute;
+      left: 1470px;
+      top: 494px;
+      width: 200px;
+      display: flex;
+      justify-content: center;
+    }
+    #s3-node {
+      height: 52px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 16px;
+      background: #191815;
+      border: 2px solid #3A3632;
+      font-weight: 500;
+      font-size: 28px;
+      color: #E5E5E5;
+      white-space: nowrap;
+    }
+    #s3-node svg {
+      width: 22px;
+      height: 22px;
+      flex: none;
+    }
+    .hyd-label {
+      position: absolute;
+      left: 1592px;
+      line-height: 36px;
+      font-weight: 500;
+      font-size: 30px;
+      color: #A0A0A0;
+    }
+
+    /* Query chips */
+    .chip {
+      position: absolute;
+      height: 54px;
+      background: var(--chip);
+      box-shadow: 0 0 0 5px #10100E;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 30px;
+      letter-spacing: 0.02em;
+      color: #10100E;
+      opacity: 0;
+    }
+    .chip.query {
+      width: 150px;
+    }
+    .chip.result {
+      width: 80px;
+    }
+    .glyph {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .glyph span {
+      display: flex;
+      gap: 4px;
+    }
+    .glyph i {
+      display: block;
+      height: 4px;
+      background: #10100E;
+    }
+    .glyph span:first-child i {
+      height: 6px;
+    }
+    .glyph i:first-child {
+      width: 13px;
+    }
+    .glyph i:last-child {
+      width: 24px;
+    }
+
+    /* Routing-code log */
+    .log-header,
+    .log-row,
+    .log-slot {
+      position: absolute;
+      left: 300px;
+      width: 1320px;
+    }
+    .log-header {
+      top: 782px;
+      height: 40px;
+    }
+    .log-slot,
+    .log-row {
+      height: 58px;
+      border: 2px solid #191815;
+    }
+    .log-row {
+      background: #191815;
+      border-color: #2B2925;
+      opacity: 0;
+    }
+    .cell {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .c-code {
+      left: 32px;
+    }
+    .c-client {
+      left: 340px;
+    }
+    .c-engine {
+      left: 650px;
+    }
+    .c-reason {
+      left: 950px;
+    }
+    /* Was 22px (≈9px at 800px docs width); now 30px (≈12.5px) in a brighter grey. */
+    .head-label {
+      font-weight: 700;
+      font-size: 30px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #A0A0A0;
+    }
+    .code {
+      font-weight: 700;
+      font-size: 34px;
+      color: #FA9F42;
+    }
+    .swatch {
+      width: 14px;
+      height: 14px;
+    }
+    .row-text {
+      font-weight: 500;
+      font-size: 32px;
+      color: #E5E5E5;
+    }
+    .row-reason {
+      color: #A0A0A0;
+    }
+    .row-logo {
+      width: 32px;
+      height: 32px;
+    }
+    #code-frame {
+      position: absolute;
+      left: 294px;
+      top: 830px;
+      width: 302px;
+      height: 206px;
+      border: 3px solid #FA9F42;
+      opacity: 0;
+    }
+  </style>
+
+  <div id="root" data-composition-id="diagram" data-width="1920" data-height="1080">
+    <!-- Wires. Base lines, flowing trails, intro pulses, hydration. -->
+    <svg id="dg-wires" class="layer" width="1920" height="1080" viewBox="0 0 1920 1080">
+      <g id="wires-clients" fill="none" stroke="#3A3632" stroke-width="3">
+        <path d="M 500 360 C 625 360, 625 484, 750 484" />
+        <path d="M 500 520 C 625 520, 625 520, 750 520" />
+        <path d="M 500 680 C 625 680, 625 556, 750 556" />
+      </g>
+      <g id="wires-engines">
+        <g fill="none" stroke="#3A3632" stroke-width="3">
+          <path d="M 1170 484 C 1255 484, 1255 372, 1340 372" />
+          <path d="M 1170 556 C 1255 556, 1255 668, 1340 668" />
+        </g>
+        <line id="hyd-line" x1="1570" y1="608" x2="1570" y2="438" stroke="#4E7492" stroke-width="3"
+          stroke-dasharray="10 10" stroke-dashoffset="0" opacity="0.75" />
+        <path id="hyd-arrow" d="M 1558 450 L 1570 438 L 1582 450" fill="none" stroke="#4E7492" stroke-width="3" />
+        <rect id="hyd-b0" class="hyd-block" x="1561" y="587" width="18" height="18" fill="#77B6EA" opacity="0" />
+        <rect id="hyd-b1" class="hyd-block" x="1561" y="587" width="18" height="18" fill="#77B6EA" opacity="0" />
+        <rect id="hyd-b2" class="hyd-block" x="1561" y="587" width="18" height="18" fill="#77B6EA" opacity="0" />
+      </g>
+      <g id="wires-flow" fill="none" stroke-width="3">
+        <path id="pulse-bi" class="pulse" d="M 500 360 C 625 360, 625 484, 750 484" stroke="#FA9F42" />
+        <path id="pulse-dbt" class="pulse" d="M 500 520 C 625 520, 625 520, 750 520" stroke="#FA9F42" />
+        <path id="pulse-python" class="pulse" d="M 500 680 C 625 680, 625 556, 750 556" stroke="#FA9F42" />
+        <path id="q1-t0" class="trail" d="M 500 360 C 625 360, 625 484, 750 484" stroke="#FA9F42" />
+        <path id="q1-t1" class="trail" d="M 1170 484 C 1255 484, 1255 372, 1340 372" stroke="#FA9F42" />
+        <path id="q2-t0" class="trail" d="M 500 680 C 625 680, 625 556, 750 556" stroke="#D4D4D4" />
+        <path id="q2-t1" class="trail" d="M 1170 556 C 1255 556, 1255 668, 1340 668" stroke="#D4D4D4" />
+        <path id="q3-t0" class="trail" d="M 500 360 C 625 360, 625 484, 750 484" stroke="#FA9F42" />
+        <path id="q3-t1" class="trail" d="M 1170 484 C 1255 484, 1255 372, 1340 372" stroke="#FA9F42" />
+        <path id="q3-t3" class="trail" d="M 1170 556 C 1255 556, 1255 668, 1340 668" stroke="#FA9F42" />
+      </g>
+    </svg>
+
+    <!-- Query chips travel beneath the cards, so they appear to enter and leave them. -->
+    <div id="dg-chips" class="layer mono">
+      <div id="q1-c0" class="chip query" style="--chip: #FA9F42">SELECT</div>
+      <div id="q1-c1" class="chip query" style="--chip: #FA9F42">SELECT</div>
+      <div id="q1-c2" class="chip result" style="--chip: #FA9F42"><div class="glyph"><span><i></i><i></i></span><span><i></i><i></i></span><span><i></i><i></i></span></div></div>
+      <div id="q1-c3" class="chip result" style="--chip: #FA9F42"><div class="glyph"><span><i></i><i></i></span><span><i></i><i></i></span><span><i></i><i></i></span></div></div>
+      <div id="q2-c0" class="chip query" style="--chip: #D4D4D4">INSERT</div>
+      <div id="q2-c1" class="chip query" style="--chip: #D4D4D4">INSERT</div>
+      <div id="q2-c2" class="chip result" style="--chip: #D4D4D4"><div class="glyph"><span><i></i><i></i></span><span><i></i><i></i></span><span><i></i><i></i></span></div></div>
+      <div id="q2-c3" class="chip result" style="--chip: #D4D4D4"><div class="glyph"><span><i></i><i></i></span><span><i></i><i></i></span><span><i></i><i></i></span></div></div>
+      <div id="q3-c0" class="chip query" style="--chip: #FA9F42">SELECT</div>
+      <div id="q3-c1" class="chip query" style="--chip: #FA9F42">SELECT</div>
+      <div id="q3-c2" class="chip query" style="--chip: #FA9F42">SELECT</div>
+      <div id="q3-c3" class="chip query" style="--chip: #FA9F42">SELECT</div>
+      <div id="q3-c4" class="chip result" style="--chip: #FA9F42"><div class="glyph"><span><i></i><i></i></span><span><i></i><i></i></span><span><i></i><i></i></span></div></div>
+      <div id="q3-c5" class="chip result" style="--chip: #FA9F42"><div class="glyph"><span><i></i><i></i></span><span><i></i><i></i></span><span><i></i><i></i></span></div></div>
+    </div>
+
+    <div id="dg-clients" class="layer">
+      <div id="client-bi" class="client" style="top: 308px">
+        <div class="client-icon"><div class="bars"><div style="height: 18px"></div><div style="height: 34px"></div><div style="height: 26px"></div></div></div>
+        <div class="client-label">BI tool</div>
+      </div>
+      <div id="client-dbt" class="client" style="top: 468px">
+        <div class="client-icon"><img src="assets/logos/dbt.svg" alt="" style="width: 38px; height: 38px" /></div>
+        <div class="client-label">dbt</div>
+      </div>
+      <div id="client-python" class="client" style="top: 628px">
+        <div class="client-icon"><div class="prompt mono">&gt;_</div></div>
+        <div class="client-label">Python app</div>
+      </div>
+    </div>
+
+    <div id="dg-greybeam" class="layer">
+      <div class="centered-row" style="top: 266px">
+        <div id="ghost-host" class="mono">ab12345.snowflakecomputing.com<div id="ghost-strike"></div></div>
+      </div>
+      <div class="centered-row" style="top: 322px">
+        <div id="endpoint" class="mono">ab12345.acme.compute.greybeam.ai</div>
+      </div>
+      <div id="endpoint-stem"></div>
+      <div id="gb-node">
+        <div id="gb-scan"></div>
+        <div id="gb-wordmark">Greybeam</div>
+      </div>
+      <div id="verdict-0" class="verdict mono">eligible → DuckDB</div>
+      <div id="verdict-1" class="verdict mono">write → Snowflake</div>
+      <div id="verdict-2" class="verdict mono">eligible → DuckDB</div>
+      <div id="verdict-3" class="verdict mono">fallback → Snowflake</div>
+    </div>
+
+    <div id="dg-engines" class="layer">
+      <div id="engine-duckdb" class="engine" style="top: 312px">
+        <img class="engine-logo duck-ring" src="assets/logos/duckdb.svg" alt="" />
+        <div>
+          <div class="engine-title">DuckDB</div>
+          <div class="engine-sub">Managed by Greybeam</div>
+        </div>
+        <div id="bar-duckdb" class="engine-bar"></div>
+        <div id="duck-error" class="mono">error</div>
+      </div>
+      <div id="engine-snowflake" class="engine" style="top: 608px">
+        <img class="engine-logo" src="assets/logos/snowflake.svg" alt="" />
+        <div>
+          <div class="engine-title">Snowflake</div>
+          <div class="engine-sub">Your account</div>
+        </div>
+        <div id="bar-snowflake" class="engine-bar"></div>
+      </div>
+      <div id="s3-row">
+        <div id="s3-node">
+          <svg viewBox="0 0 22 22" fill="none" stroke="#A0A0A0" stroke-width="2" aria-hidden="true">
+            <path d="M 3 5 L 19 5 L 17 19 L 5 19 Z" />
+            <path d="M 3 5 C 3 2.5, 19 2.5, 19 5" />
+          </svg>
+          Your S3
+        </div>
+      </div>
+      <div id="hyd-cache" class="hyd-label" style="top: 445px">cache</div>
+      <div id="hyd-replicate" class="hyd-label" style="top: 559px">replicate</div>
+    </div>
+
+    <div id="dg-log" class="layer">
+      <div class="log-header">
+        <div class="cell c-code"><div id="head-code" class="head-label">Routing code</div></div>
+        <div class="cell c-client"><div class="head-label">Client</div></div>
+        <div class="cell c-engine"><div class="head-label">Ran on</div></div>
+        <div class="cell c-reason"><div class="head-label">Reason</div></div>
+      </div>
+      <div class="log-slot" style="top: 836px"></div>
+      <div class="log-slot" style="top: 904px"></div>
+      <div class="log-slot" style="top: 972px"></div>
+      <div id="row-q1" class="log-row" style="top: 836px">
+        <div class="cell c-code"><div class="code mono">100</div></div>
+        <div class="cell c-client"><div class="swatch" style="background: #FA9F42"></div><div class="row-text">BI tool</div></div>
+        <div class="cell c-engine"><img class="row-logo duck-ring" src="assets/logos/duckdb.svg" alt="" /><div class="row-text">DuckDB</div></div>
+        <div class="cell c-reason"><div class="row-text row-reason">No issues</div></div>
+      </div>
+      <div id="row-q2" class="log-row" style="top: 904px">
+        <div class="cell c-code"><div class="code mono">204</div></div>
+        <div class="cell c-client"><div class="swatch" style="background: #D4D4D4"></div><div class="row-text">Python app</div></div>
+        <div class="cell c-engine"><img class="row-logo" src="assets/logos/snowflake.svg" alt="" /><div class="row-text">Snowflake</div></div>
+        <div class="cell c-reason"><div class="row-text row-reason">DML query</div></div>
+      </div>
+      <div id="row-q3" class="log-row" style="top: 972px">
+        <div class="cell c-code"><div class="code mono">800</div></div>
+        <div class="cell c-client"><div class="swatch" style="background: #FA9F42"></div><div class="row-text">BI tool</div></div>
+        <div class="cell c-engine"><img class="row-logo" src="assets/logos/snowflake.svg" alt="" /><div class="row-text">Snowflake</div></div>
+        <div class="cell c-reason"><div class="row-text row-reason">DuckDB query failed</div></div>
+      </div>
+      <div id="code-frame"></div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const { span, between, sec, EASE_IN_OUT, EASE_OUT } = window.GB;
+      const tl = gsap.timeline({ paused: true });
+
+      const C = {
+        border: "#2B2925",
+        amber: "#FA9F42",
+        neutralHi: "#D4D4D4", // centre card, client and engine highlights
+        nodeIdle: "#57534C",
+        blueDim: "#4E7492",
+        amberDim: "#563B1E",
+        codeAccent: "#FA9F42",
+        strong: "#FFFFF0",
+        emphasis: "#E5E5E5",
+        body: "#A0A0A0",
+        biMarker: "#FA9F42",
+        appMarker: "#D4D4D4",
+        error: "#F06A5F",
+        blue: "#77B6EA",
+        blueSynced: "#689AC3", // border mixed 80% toward blue
+      };
+
+      // Wire endpoints (cubic S-curves whose control points sit at the horizontal midpoint).
+      const PATHS = {
+        bi: [500, 360, 750, 484],
+        dbt: [500, 520, 750, 520],
+        python: [500, 680, 750, 556],
+        duckdb: [1170, 484, 1340, 372],
+        snowflake: [1170, 556, 1340, 668],
+      };
+      // Position along such a curve at eased parameter s, split per axis so each axis is a
+      // plain GSAP tween with its own ease (no update callbacks needed).
+      const alongX = (s) => 1.5 * s - 1.5 * s * s + s * s * s;
+      const alongY = (s) => 3 * s * s - 2 * s * s * s;
+
+      // ---- The story: three queries (frame numbers at 30 fps) ----
+      const directQuery = (id, s, client, engine, color) => ({
+        id, s, client, color, end: s + 112, logAt: s + 106,
+        legs: [
+          [client, false, s + 4, s + 26],
+          [engine, false, s + 48, s + 66],
+          [engine, true, s + 78, s + 92],
+          [client, true, s + 92, s + 110],
+        ],
+        inspections: [[s + 26, s + 66]],
+        runs: [{ engine, a: s + 66, b: s + 78, fails: false }],
+      });
+      const fallbackQuery = (id, s, client, color) => ({
+        id, s, client, color, end: s + 176, logAt: s + 170,
+        legs: [
+          [client, false, s + 4, s + 26],
+          ["duckdb", false, s + 48, s + 66],
+          ["duckdb", true, s + 86, s + 100],
+          ["snowflake", false, s + 112, s + 130],
+          ["snowflake", true, s + 142, s + 156],
+          [client, true, s + 156, s + 174],
+        ],
+        inspections: [[s + 26, s + 66], [s + 98, s + 130]],
+        runs: [
+          { engine: "duckdb", a: s + 66, b: s + 90, fails: true },
+          { engine: "snowflake", a: s + 130, b: s + 142, fails: false },
+        ],
+      });
+      const QUERIES = [
+        directQuery("q1", 100, "bi", "duckdb", C.biMarker), // 100 · No issues
+        directQuery("q2", 215, "python", "snowflake", C.appMarker), // 204 · DML query
+        fallbackQuery("q3", 330, "bi", C.biMarker), // 800 · DuckDB query failed
+      ];
+      const HYDRATION = [500, 575];
+      const CODES = [585, 645];
+      const OUTRO = [632, 655];
+
+      // ---- Static setup: path lengths for stroke-dash drawing, chip start positions ----
+      const lengthOf = (el) => el.getTotalLength();
+      document.querySelectorAll("path.trail").forEach((el) => {
+        const len = lengthOf(el);
+        el.setAttribute("stroke-dasharray", `${len} ${len}`);
+        el.setAttribute("stroke-dashoffset", `${len}`);
+        el.dataset.len = String(len);
+      });
+      document.querySelectorAll("path.pulse").forEach((el) => {
+        const len = lengthOf(el);
+        el.setAttribute("stroke-dasharray", `140 ${len + 140}`);
+        el.setAttribute("stroke-dashoffset", "140");
+        el.dataset.len = String(len);
+      });
+
+      // ---- Intro: endpoint swap, pulses from every client ----
+      between(tl, "#ghost-host", 6, 92, 10, 14, { opacity: 0 }, { opacity: 0.9 });
+      span(tl, "#ghost-strike", 20, 36, { scaleX: 0, transformOrigin: "0% 50%" }, { scaleX: 1, transformOrigin: "0% 50%" }, "none");
+      between(tl, "#endpoint", 26, 96, 12, 14, { borderColor: C.amberDim, color: C.emphasis }, { borderColor: C.amber, color: C.strong });
+      between(tl, "#endpoint-stem", 26, 96, 12, 14, { backgroundColor: C.amberDim }, { backgroundColor: C.amber });
+      ["bi", "dbt", "python"].forEach((id, i) => {
+        const el = document.getElementById("pulse-" + id);
+        const start = 12 + i * 8;
+        span(tl, el, start, start + 34, { attr: { "stroke-dashoffset": 140 } }, { attr: { "stroke-dashoffset": -Number(el.dataset.len) } });
+      });
+
+      // ---- Greybeam card: neutral border + soft glow while inspecting; scan sweep ----
+      const inspectOn = { borderColor: C.neutralHi, boxShadow: "0px 0px 28px 0px rgba(212, 212, 212, 0.16)" };
+      const inspectOff = { borderColor: C.nodeIdle, boxShadow: "0px 0px 28px 0px rgba(212, 212, 212, 0)" };
+      between(tl, "#gb-node", 40, 96, 10, 12, inspectOff, inspectOn);
+      const scanHalfIn = (u) => Math.sin(Math.PI * EASE_IN_OUT(u / 2));
+      const scanHalfOut = (u) => 1 - Math.sin(Math.PI * EASE_IN_OUT(0.5 + u / 2));
+      QUERIES.flatMap((q) => q.inspections).forEach(([a, b], i) => {
+        between(tl, "#gb-node", a, b - 18, 6, 10, inspectOff, inspectOn);
+        span(tl, "#gb-scan", a, a + 20, { x: 0 }, { x: 540 });
+        span(tl, "#gb-scan", a, a + 10, { opacity: 0 }, { opacity: 0.9 }, scanHalfIn);
+        span(tl, "#gb-scan", a + 10, a + 20, { opacity: 0.9 }, { opacity: 0 }, scanHalfOut);
+        between(tl, `#verdict-${i}`, a + 8, b + 6, 8, 8, { opacity: 0 }, { opacity: 1 });
+      });
+
+      // ---- Queries: client highlight, trails, chips, engine runs, log rows ----
+      for (const q of QUERIES) {
+        between(tl, `#client-${q.client}`, q.s, q.end + 12, 8, 12, { borderColor: C.border }, { borderColor: C.neutralHi });
+
+        const failRun = q.runs.find((r) => r.fails);
+        const failAt = failRun ? failRun.a + 10 : null;
+
+        q.legs.forEach(([path, reversed, a, b], i) => {
+          // Chip: travels the wire with an in-out ease, fading at both ends.
+          const chip = document.getElementById(q.id + "-c" + i);
+          const [x0, y0, x1, y1] = PATHS[path];
+          const [fx, fy, tx, ty] = reversed ? [x1, y1, x0, y0] : [x0, y0, x1, y1];
+          const w = chip.classList.contains("query") ? 150 : 80;
+          chip.style.left = `${fx - w / 2}px`;
+          chip.style.top = `${fy - 27}px`;
+          span(tl, chip, a, b, { x: 0 }, { x: tx - fx }, (t) => alongX(EASE_IN_OUT(t)));
+          span(tl, chip, a, b, { y: 0 }, { y: ty - fy }, (t) => alongY(EASE_IN_OUT(t)));
+          const edge = (b - a) * 0.12;
+          span(tl, chip, a, a + edge, { opacity: 0 }, { opacity: 1 });
+          span(tl, chip, b - edge, b, { opacity: 1 }, { opacity: 0 });
+
+          // Trail: the outbound wire draws in behind the chip and stays lit until the query ends.
+          if (reversed) return;
+          const trail = document.getElementById(q.id + "-t" + i);
+          const len = Number(trail.dataset.len);
+          span(tl, trail, a, b, { attr: { "stroke-dashoffset": len } }, { attr: { "stroke-dashoffset": 0 } });
+          const failed = failAt !== null && path === "duckdb";
+          span(tl, trail, a, a + 1, { opacity: 0 }, { opacity: 1 }, EASE_OUT);
+          if (failed) {
+            span(tl, trail, failAt, failAt + 8, { stroke: q.color, opacity: 1 }, { stroke: C.error, opacity: 0.55 });
+          }
+          span(tl, trail, q.end, q.end + 14, { opacity: failed ? 0.55 : 1 }, { opacity: 0 });
+        });
+
+        for (const run of q.runs) {
+          const card = `#engine-${run.engine}`;
+          const bar = `#bar-${run.engine}`;
+          if (!run.fails) {
+            between(tl, card, run.a, run.b + 14, 6, 12, { borderColor: C.border }, { borderColor: C.neutralHi });
+            between(tl, bar, run.a, run.b + 14, 6, 12, { opacity: 0 }, { opacity: 1 });
+            span(tl, bar, run.a, run.b, { scaleX: 0, transformOrigin: "0% 50%" }, { scaleX: 1, transformOrigin: "0% 50%" });
+            continue;
+          }
+          const end = run.b + 16;
+          span(tl, card, run.a, run.a + 6, { borderColor: C.border }, { borderColor: C.neutralHi }, EASE_OUT);
+          span(tl, card, failAt, failAt + 4, { borderColor: C.neutralHi }, { borderColor: C.error }, EASE_OUT);
+          span(tl, card, end - 14, end, { borderColor: C.error }, { borderColor: C.border });
+          between(tl, bar, run.a, end, 6, 14, { opacity: 0 }, { opacity: 1 });
+          span(tl, bar, run.a, failAt, { scaleX: 0, transformOrigin: "0% 50%" }, { scaleX: 0.6, transformOrigin: "0% 50%" });
+          span(tl, bar, failAt, failAt + 4, { backgroundColor: C.amber }, { backgroundColor: C.error }, EASE_OUT);
+          between(tl, "#duck-error", failAt, end, 4, 14, { opacity: 0 }, { opacity: 1 });
+        }
+
+        const row = `#row-${q.id}`;
+        span(tl, row, q.logAt, q.logAt + 12, { opacity: 0 }, { opacity: 1 }, EASE_OUT);
+        span(tl, row, q.logAt, q.logAt + 16, { y: 16 }, { y: 0 }, EASE_OUT);
+        span(tl, row, OUTRO[0], OUTRO[1], { opacity: 1 }, { opacity: 0 });
+      }
+
+      // ---- Hydration: dashes flow Snowflake → Your S3 → DuckDB; blue focus, tables pass through S3 ----
+      // Dash period 20 px divides the 660-frame loop, so the flow lines up at the seam.
+      tl.fromTo("#hyd-line", { attr: { "stroke-dashoffset": 0 } }, { attr: { "stroke-dashoffset": -660 }, duration: sec(660), ease: "none", immediateRender: false }, 0);
+      const [h0, h1] = HYDRATION;
+      between(tl, "#hyd-line", h0, h1, 12, 12, { stroke: C.blueDim, opacity: 0.75 }, { stroke: C.blue, opacity: 1 });
+      between(tl, "#hyd-arrow", h0, h1, 12, 12, { stroke: C.blueDim }, { stroke: C.blue });
+      between(tl, ".hyd-label", h0, h1, 12, 12, { color: C.body }, { color: C.blue });
+      between(tl, "#s3-node", h0, h1, 12, 12, { borderColor: "#3A3632" }, { borderColor: C.blueSynced });
+      between(tl, "#engine-duckdb", h0, h1, 12, 12, { borderColor: C.border }, { borderColor: C.blueSynced });
+      [0, 1, 2].forEach((i) => {
+        const start = 506 + i * 18;
+        span(tl, `#hyd-b${i}`, start, start + 34, { attr: { y: 587 } }, { attr: { y: 447 } });
+        between(tl, `#hyd-b${i}`, start, start + 34, 6, 8, { opacity: 0 }, { opacity: 1 });
+      });
+
+      // ---- Routing codes: frame the code column, dim everything else ----
+      between(tl, "#code-frame", CODES[0], CODES[1], 12, 12, { opacity: 0 }, { opacity: 1 });
+      between(tl, "#head-code", CODES[0], CODES[1], 12, 12, { color: C.body }, { color: C.codeAccent });
+
+      // ---- Focus dimming (opacity multiplier for parts not in focus) ----
+      const dimHydration = ["#dg-clients", "#dg-greybeam", "#dg-log", "#wires-clients", "#wires-flow"];
+      const dimCodes = ["#dg-clients", "#dg-greybeam", "#dg-engines", "#wires-clients", "#wires-engines", "#wires-flow"];
+      between(tl, dimHydration, h0, h1, 12, 12, { opacity: 1 }, { opacity: 0.4 });
+      between(tl, dimCodes, CODES[0], OUTRO[1], 12, 18, { opacity: 1 }, { opacity: 0.4 });
+
+      window.__timelines["diagram"] = tl;
+    })();
+  </script>
+</template>

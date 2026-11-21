@@ -1,0 +1,5 @@
+node_modules
+.DS_Store
+# Render scratch (poster stills, snapshots) and local HyperFrames state/history.
+out
+.hyperframes
