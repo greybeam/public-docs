@@ -1,0 +1,72 @@
+---
+title: "SQL support"
+description: "Which requests Greybeam can run on DuckDB, which always run on Snowflake, and how Snowflake SQL UDFs behave."
+icon: "code"
+---
+
+Greybeam runs `SELECT` queries on DuckDB when the tables they read are active. Every other kind of request runs on your Snowflake account. This page lists both groups and explains what to expect from views that call SQL UDFs.
+
+Your client sees a normal Snowflake response either way. The **routing code** on each query tells you where it ran and why. See [Routing codes](/reference/routing-codes).
+
+## What can run on DuckDB
+
+A request can run on DuckDB when it is a `SELECT` query and every table it reads is active in Greybeam. If a table isn't active or isn't tracked, the query runs on Snowflake instead. Turn tables on in [Objects Explorer](/platform/objects-explorer).
+
+If DuckDB can't run an eligible query, Greybeam falls back to Snowflake and returns Snowflake's result or error. See [Limitations](/reference/limitations) for the cases that cause this.
+
+## What always runs on Snowflake
+
+These request types never run on DuckDB. Greybeam passes them straight to Snowflake. They are expected, not a sign that something went wrong.
+
+| Request type | Routing code |
+| --- | --- |
+| No SQL in the request | `200` |
+| Metadata queries | `201` |
+| Transactions | `202` |
+| DDL (for example `CREATE`, `ALTER`, `DROP`) | `203` |
+| DML (for example `INSERT`, `UPDATE`, `DELETE`) | `204` |
+| DCL (for example `GRANT`, `REVOKE`) | `205` |
+| Describe queries | `211` |
+| Explain queries | `212` |
+| Queries sent through dbt | `214` |
+
+For how dbt builds work with Greybeam, see [Connect dbt](/connect/dbt).
+
+## Snowflake SQL UDFs
+
+Views that call Snowflake SQL UDFs can run on DuckDB. Greybeam translates the UDF so the view returns the same rows as it does in Snowflake, except in two known edge cases.
+
+- **Same results as Snowflake, with exceptions.** A view returns the same rows wherever it calls the UDF: in `SELECT`, `WHERE`, `GROUP BY`, or `ORDER BY`. The exceptions are the edge cases below.
+- **Arguments are evaluated where you call the UDF.** Aggregates such as `COUNT(*)` and window functions such as `ROW_NUMBER() OVER (...)` give the same values as in Snowflake.
+- **Untranslatable UDFs fall back.** If Greybeam can't translate a UDF, it can't create that view in DuckDB. Snowflake serves the view instead, and queries on it run on Snowflake.
+
+### Volatile arguments
+
+Snowflake evaluates each argument once per call. For some UDFs, DuckDB evaluates an argument once for every place the UDF body uses it. If you pass a volatile expression such as `RANDOM()` to a UDF whose body uses that parameter more than once, DuckDB can return different values where Snowflake returns one.
+
+Greybeam protects most UDFs that use a parameter three or more times. UDFs that use a parameter twice, and UDFs whose bodies contain subqueries, aggregates, or window functions, are not protected.
+
+### Non-text values passed to a `VARCHAR` parameter
+
+Snowflake converts a non-text argument to text before the UDF body runs. DuckDB can keep the original type. A comparison can then give a different answer. For example, a UDF with a `VARCHAR` parameter `X` that tests `X = '01'` returns `FALSE` in Snowflake when you pass the number `1`, but can return `TRUE` on DuckDB.
+
+Greybeam doesn't convert these arguments to text today.
+
+<Tip>
+**What you can do:** If a UDF takes a `VARCHAR` parameter and you pass it numbers, dates, or other non-text values, ask Greybeam on Slack before you rely on DuckDB for that view.
+</Tip>
+
+## Other function limits
+
+`CONVERT_TIMEZONE` isn't supported on DuckDB. Queries that call it run on Snowflake with routing code `312`.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Routing codes" icon="list" href="/reference/routing-codes">
+    What each code means.
+  </Card>
+  <Card title="Limitations" icon="triangle-exclamation" href="/reference/limitations">
+    Everything that runs on Snowflake instead of DuckDB.
+  </Card>
+</CardGroup>

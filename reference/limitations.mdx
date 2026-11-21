@@ -1,0 +1,91 @@
+---
+title: "Limitations"
+description: "One list of what runs on Snowflake instead of DuckDB, with the routing code and a workaround where one exists."
+icon: "triangle-exclamation"
+---
+
+Each item below sends a query to your Snowflake account instead of DuckDB. The query runs on Snowflake and returns Snowflake's result, or Snowflake's error if it fails there too. The routing code shows why it ran on Snowflake. See [Routing codes](/reference/routing-codes) for every code.
+
+## Request types
+
+These requests are never eligible for DuckDB. See [SQL support](/reference/sql-support).
+
+| Limit | Code | What you can do |
+| --- | --- | --- |
+| Metadata, transaction, DDL, DML, or DCL request | [201](/reference/routing-codes#201-metadata-query)–[205](/reference/routing-codes#205-dcl-query) | Nothing |
+| Describe or explain query | [211](/reference/routing-codes#211-describe-query-not-supported), [212](/reference/routing-codes#212-explain-query-not-supported) | Nothing |
+| Request with no SQL | [200](/reference/routing-codes#200-no-sql) | Nothing |
+| SQL text over 100KB | [207](/reference/routing-codes#207-sql-text-size-is-over-100kb) | Shorten the query |
+| SQL Greybeam can't parse | [206](/reference/routing-codes#206-sql-parse-error) | None known |
+
+## Unsupported functions
+
+These functions aren't supported on DuckDB.
+
+| Limit | Code | What you can do |
+| --- | --- | --- |
+| `CONVERT_TIMEZONE` | [312](/reference/routing-codes#312-convert_timezone-not-supported-in-duckdb) | None known |
+| `GENERATOR` with a `TIMELIMIT` argument | [314](/reference/routing-codes#314-timelimit-not-supported-in-duckdb) | Nothing. Looker sends these to test query cancellation. |
+
+## Tables and datasets
+
+| Limit | Code | What you can do |
+| --- | --- | --- |
+| Table isn't tracked (Greybeam's Snowflake role can't see it) | [300](/reference/routing-codes#300-tables-in-query-not-tracked) | Grant the Greybeam role access to the database, schema, or table. See [Objects Explorer](/platform/objects-explorer). |
+| Table isn't active | [301](/reference/routing-codes#301-tables-in-query-not-active) | Turn it on in [Objects Explorer](/platform/objects-explorer). |
+| Table is too large for DuckDB | [302](/reference/routing-codes#302-tables-in-query-too-large) | None known |
+| Table data is stale or not ready to route | [313](/reference/routing-codes#313-tables-data-is-stale-or-not-route-ready) | Wait for the next hydration, or check the table's **Hydration Jobs** tab. See [Hydration jobs](/platform/hydration-jobs). |
+| BI dataset the query depends on is outdated | [304](/reference/routing-codes#304-duckdb-sigma-dataset-is-outdated), [308](/reference/routing-codes#308-duckdb-sigma-sigds-dataset-is-outdated), [310](/reference/routing-codes#310-duckdb-looker-pdt-dataset-is-outdated), [318](/reference/routing-codes#318-sigma-transient-dataset-is-outdated) | Resolves once the dataset is refreshed. |
+
+## Your own rules
+
+| Limit | Code | What you can do |
+| --- | --- | --- |
+| SQL doesn't match your SQL filter | [303](/reference/routing-codes#303-sql-doesn’t-match-regex-filter) | Change **SQL Filter Regex** in [Settings](/platform/settings). |
+| Query is blacklisted | [305](/reference/routing-codes#305-query-is-blacklisted-sql-text), [306](/reference/routing-codes#306-query-is-blacklisted-tables-included), [307](/reference/routing-codes#307-query-is-blacklisted-tables-joined) | See [Query blacklist](/platform/query-blacklist). |
+
+## Views and external tables
+
+These have no routing code.
+
+- **A view calls a UDF Greybeam can't translate.** Snowflake serves the view. Code varies. Nothing to change.
+- **A volatile argument such as `RANDOM()` is used more than once in a UDF body.** It can return different values on DuckDB. See [SQL support](/reference/sql-support#volatile-arguments).
+- **A non-text value is passed to a `VARCHAR` parameter of a UDF.** It can compare differently on DuckDB. Ask Greybeam on Slack. See [SQL support](/reference/sql-support#non-text-values-passed-to-a-varchar-parameter).
+- **AssumeRole authentication isn't supported yet for external Iceberg tables.** Use an access key. See [External Iceberg tables](/reference/external-tables).
+
+## DuckDB failures
+
+When DuckDB fails on a query or can't take it, Greybeam falls back to Snowflake. You don't need to change anything.
+
+| Limit | Code |
+| --- | --- |
+| DuckDB fails on a query: binder, catalog, parser, or conversion error, or out of memory | [800](/reference/routing-codes#800-duckdb-query-failed), [810](/reference/routing-codes#810-binder-error)–[815](/reference/routing-codes#815-out-of-memory) |
+| DuckDB cluster is busy: no connections or workers, or the query timed out in the queue | [801](/reference/routing-codes#801-duckdb-cluster-ran-out-of-connections), [802](/reference/routing-codes#802-query-timed-out-while-waiting-in-queue), [803](/reference/routing-codes#803-query-reallocation-limit-exceeded), [804](/reference/routing-codes#804-no-available-duckdb-worker) |
+
+## Kill switches
+
+| Limit | Code | What you can do |
+| --- | --- | --- |
+| The user kill switch is on | [900](/reference/routing-codes#900-user-kill-switch-active) | Turn the platform switch back on. |
+| The system kill switch is on | [901](/reference/routing-codes#901-system-kill-switch-active) | Ask in your shared Slack channel. |
+
+<Tip>
+To find queries you could move to DuckDB, filter the query history on **Home** by routing code. See [Query history](/platform/query-history).
+</Tip>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Routing codes" icon="list" href="/reference/routing-codes">
+    Every code and what it means.
+  </Card>
+  <Card title="SQL support" icon="code" href="/reference/sql-support">
+    What runs on DuckDB and what always runs on Snowflake.
+  </Card>
+  <Card title="Objects Explorer" icon="table" href="/platform/objects-explorer">
+    Track tables and turn them on.
+  </Card>
+  <Card title="Query blacklist" icon="ban" href="/platform/query-blacklist">
+    Keep specific queries on Snowflake.
+  </Card>
+</CardGroup>

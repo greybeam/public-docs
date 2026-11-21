@@ -1,0 +1,145 @@
+---
+title: "Hydration"
+description: "How Greybeam replicates your tables into your S3 bucket, caches them on DuckDB workers, and keeps them in sync with Snowflake."
+icon: "droplet"
+---
+
+Hydration is how Greybeam gets the tables you turn on ready for DuckDB and keeps them in sync with Snowflake. Read on to learn where your data goes, what triggers a refresh, when a table counts as stale, what hydration costs, and how to fix a table that won't stay fresh.
+
+## What hydration is
+
+DuckDB can only answer a query when it has current data for every table the query reads. Hydration provides that data in two parts:
+
+- **Replicate.** Greybeam replicates each table you turn on from Snowflake into your S3 bucket, the one you set up during [onboarding](/get-started/onboarding#step-5-s3-setup). The replicated data is Parquet or Iceberg files in your own AWS account, and it stays there.
+- **Cache.** The DuckDB workers that Greybeam runs cache that data for performance. Serving queries from a local cache is much faster than reading files from S3 each time.
+
+Here's how a table gets there:
+
+1. In [Settings](/platform/settings), you switch on the Snowflake databases Greybeam should work with. Their tables appear in [Objects Explorer](/platform/objects-explorer).
+2. In Objects Explorer, you turn on the tables you want available to DuckDB.
+3. Greybeam replicates each table you turn on into your S3 bucket, and the DuckDB workers cache it.
+4. Greybeam checks each table on a schedule and replicates new changes from Snowflake. The workers refresh their cache with each change.
+
+Turning a table on doesn't change any permissions in Snowflake. It only tells Greybeam to start hydrating it.
+
+Until a table's first load finishes, queries on it run on Snowflake with code [313](/reference/routing-codes#313-tables-data-is-stale-or-not-route-ready).
+
+### Caching defaults and exceptions
+
+By default, workers download each active table from your bucket and convert it to DuckDB's format before they serve it. The **Load Parquet files** and **Conversion type** settings on a table's **Engines** tab control this. Leave them at their defaults unless Greybeam asks you to change them. See [Objects Explorer](/platform/objects-explorer#engines-tab).
+
+External Iceberg tables work differently. Greybeam reads them from your own catalog and object storage instead of replicating them through Snowflake. DuckDB can query them directly through your catalog, without a local cache. See [External tables](/reference/external-tables).
+
+## How a refresh works
+
+Each time Greybeam checks a table, it asks Snowflake whether the table changed since the last refresh.
+
+- **No change:** Greybeam replicates nothing and usually records the job as **Skipped**.
+- **Changed:** Greybeam replicates the new data into your S3 bucket, and the workers refresh their cache. Depending on the table's hydration method, it replicates the whole table or only the rows that changed (CDC). See [Objects Explorer](/platform/objects-explorer#hydration-tab).
+
+<Info>
+**Skipped** jobs are usually normal. Greybeam checks often, and most checks find nothing new. A skipped check that found no change confirms the table is current. A **Fast Hydration** job is also skipped when its warehouse is smaller than the table needs. That job doesn't refresh the table. Open the job and read its message.
+</Info>
+
+## What triggers a refresh
+
+Four things start a refresh. Each shows a different **TRIGGER TYPE** in the job details.
+
+- **The table's schedule.** The table's own schedule, or **Default Tables Refresh** in **Settings** > **Hydration** if it has none. Trigger type: Scheduled update.
+- **The staleness check.** **Staleness Check Schedule** in **Settings** > **Hydration**. It looks for tables that missed a scheduled refresh and changed in Snowflake, then catches them up. Trigger type: Staleness hydration.
+- **You.** **Update** or **Redownload** on the table's **Hydration** tab in Objects Explorer. Trigger type: Frontend Update or Frontend Redownload.
+- **A Sigma update.** **Fast Hydration**, if you turn it on, refreshes Sigma materialized datasets after Greybeam sees an update. It waits for the **Update threshold (minutes)** and runs only within its schedule. Trigger type: Fast Hydration.
+
+**Load All Schedule** is different. It refreshes the list of objects and their metadata from Snowflake, so new tables and dbt models show up in Objects Explorer. It doesn't replicate table data.
+
+For each setting, see [Settings](/platform/settings#hydration). To set a schedule for one table, see [Objects Explorer](/platform/objects-explorer#hydration-tab).
+
+## Freshness and staleness
+
+Greybeam only runs a query on DuckDB when every table it reads is fresh. A query on a table that might be out of date runs on Snowflake instead, so you get the current answer.
+
+Freshness works like this:
+
+- Every successful check, including a skipped one, sets the table's **Fresh Until** time. That's the check time plus the **Data Freshness Threshold (SLO)** from **Settings** > **Hydration**.
+- If **Fresh Until** passes without another successful check, the table is stale.
+- Queries on a stale table run on Snowflake with code [313](/reference/routing-codes#313-tables-data-is-stale-or-not-route-ready) until the next successful check.
+
+<Warning>
+Keep each table's schedule shorter than the freshness threshold. A table that isn't checked within the threshold goes stale between checks. That includes a table whose schedule is **Never**.
+</Warning>
+
+To see a table's freshness, open it in [Objects Explorer](/platform/objects-explorer) and click its name. The details show **Last Updated**, **Last Sync**, **Fresh Until**, and **Loadable**.
+
+## When a refresh fails
+
+A failed refresh has two possible effects on routing:
+
+- **The table becomes unavailable on DuckDB.** After a refresh fails, the table isn't served from DuckDB until a refresh succeeds. Its queries run on Snowflake with code [313](/reference/routing-codes#313-tables-data-is-stale-or-not-route-ready).
+- **The table is turned off.** If a single Snowflake query in a scheduled refresh runs past **Hydration Query Timeout (seconds)**, Greybeam turns the table off. Its queries run on Snowflake with code [301](/reference/routing-codes#301-tables-in-query-not-active) until you turn it back on.
+
+Refreshes you start from the platform aren't subject to these timeouts.
+
+To find out what went wrong, see [Diagnose a failed job](/platform/hydration-jobs#diagnose-a-failed-job).
+
+## Schedules and cost
+
+Hydration runs on a Snowflake warehouse in your account, so it uses your Snowflake credits. That's the trade-off behind every schedule:
+
+- **A faster schedule** keeps the replicated data and cache closer to Snowflake, but runs more checks and replicates changes more often. That uses more credits.
+- **A larger warehouse** finishes big refreshes sooner, at a higher credit rate. You can set warehouse size in **Settings** > **Hydration**, or per table on its **Hydration** tab.
+
+Match each schedule to how often the source data actually changes. If a table is rebuilt by an hourly pipeline, refreshing it every minute doesn't make it fresher than the pipeline. Faster schedules are worth it for tables that change often and need to stay current on DuckDB.
+
+Leaving a very large or rarely queried table off is a valid choice. You save the cost of keeping it in sync, and its queries run on Snowflake.
+
+To see what hydration costs, track Greybeam's warehouse on **Analytics** > **Warehouse Costs**. See [Analytics](/platform/analytics).
+
+## Where to monitor hydration
+
+- **[Hydration jobs](/platform/hydration-jobs)** — see every check and refresh across your account, filter by status, and read errors. Skipped jobs are hidden by default.
+- **[Objects Explorer](/platform/objects-explorer)** — turn tables on or off, check a table's freshness, set its schedule, and start a refresh. The **Hydration Jobs** tab shows one table's history.
+- **[Settings](/platform/settings#hydration)** — set default schedules, the freshness threshold, timeouts, and warehouse sizes.
+- **[Analytics](/platform/analytics)** — see how many queries went to Snowflake because tables were inactive, and what hydration costs.
+
+## Troubleshooting
+
+### I turned a table on, but its queries still run on Snowflake
+
+The first load probably hasn't finished. Queries show code [313](/reference/routing-codes#313-tables-data-is-stale-or-not-route-ready) until it does. Open the table's **Hydration Jobs** tab and wait for **Success**. If the job failed, read its error.
+
+### A table keeps showing code 313
+
+The table isn't being checked often enough, or its checks are failing.
+
+1. Click the table name in Objects Explorer and compare **Fresh Until** with now. If it's in the past, the table has gone stale.
+2. Make the schedule shorter than the **Data Freshness Threshold (SLO)**.
+3. Look for failed jobs on the **Hydration Jobs** tab.
+
+### A table turned itself off
+
+A query in a scheduled refresh ran past **Hydration Query Timeout (seconds)**. Fix the cause, for example by using a larger warehouse for that table. Then turn the table back on.
+
+### Most of my hydration jobs are skipped
+
+That's usually expected. A skipped job normally means Greybeam checked the table, found no change, and kept the table fresh. If the table is stale, open the skipped job and read its message. It may say the **Fast Hydration** warehouse is too small.
+
+### A table won't stay fresh and you can't see why
+
+Share the table name with Greybeam in your Slack channel.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Hydration jobs" icon="arrows-rotate" href="/platform/hydration-jobs">
+    See every refresh and diagnose a failed job.
+  </Card>
+  <Card title="Objects Explorer" icon="table" href="/platform/objects-explorer">
+    Turn tables on and set their schedules.
+  </Card>
+  <Card title="Query routing" icon="route" href="/how-it-works/query-routing">
+    Learn how freshness affects where a query runs.
+  </Card>
+  <Card title="Routing codes" icon="signs-post" href="/reference/routing-codes">
+    Look up codes 301 and 313.
+  </Card>
+</CardGroup>

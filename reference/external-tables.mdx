@@ -1,0 +1,162 @@
+---
+title: "External Iceberg tables"
+description: "Serve Iceberg tables from your own catalog and object storage through Greybeam, without unloading them through Snowflake."
+icon: "snowflake"
+---
+
+An external Iceberg table keeps its data in your object storage and its metadata in your Iceberg catalog. Greybeam reads it from there instead of replicating it through Snowflake.
+
+## Before you start
+
+- Greybeam supports **GLUE** (AWS Glue) and **REST** catalogs.
+- Each catalog in Greybeam matches a catalog integration in your Snowflake account. The tables must already exist in Snowflake as Iceberg tables.
+
+<Warning>
+Access-key authentication is the supported method today. AssumeRole isn't supported yet.
+</Warning>
+
+## Set up access
+
+<Steps>
+  <Step title="Grant the Greybeam role access in Snowflake">
+    Greybeam needs `USAGE` on the database and schema that hold the Iceberg tables, so it can read their metadata. `SELECT` on the tables is optional. Replace the placeholders with your names. The default Greybeam role is `GREYBEAM_ROLE`.
+
+    ```sql
+    GRANT USAGE ON DATABASE <database> TO ROLE <greybeam_role>;
+    GRANT USAGE ON SCHEMA <database>.<schema> TO ROLE <greybeam_role>;
+    GRANT SELECT ON ALL TABLES IN SCHEMA <database>.<schema> TO ROLE <greybeam_role>;
+    ```
+  </Step>
+  <Step title="Create an AWS access key with read access (Glue catalogs)">
+    Create an AWS user with an access key and attach this policy. The user needs read access to the S3 bucket and the Glue catalog.
+
+    ```json
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Sid": "IcebergS3ReadAccess",
+          "Effect": "Allow",
+          "Action": ["s3:GetObject", "s3:ListBucket"],
+          "Resource": [
+            "arn:aws:s3:::<s3_bucket_name>",
+            "arn:aws:s3:::<s3_bucket_name>/*"
+          ]
+        },
+        {
+          "Sid": "GlueCatalogReadAccess",
+          "Effect": "Allow",
+          "Action": [
+            "glue:GetCatalog",
+            "glue:GetCatalogs",
+            "glue:GetDatabase",
+            "glue:GetDatabases",
+            "glue:GetTable",
+            "glue:GetTables",
+            "glue:GetPartition",
+            "glue:GetPartitions"
+          ],
+          "Resource": [
+            "arn:aws:glue:<aws_region>:<aws_account_id>:catalog",
+            "arn:aws:glue:<aws_region>:<aws_account_id>:database/<glue_database>",
+            "arn:aws:glue:<aws_region>:<aws_account_id>:table/<glue_database>/*"
+          ]
+        }
+      ]
+    }
+    ```
+  </Step>
+</Steps>
+
+## Connect the catalog
+
+Open **Settings** in the [Greybeam platform](/platform/settings), then **Catalogs** under **Greybeam**.
+
+<Steps>
+  <Step title="Load your catalog integrations">
+    Under **Load Iceberg Catalogs**, click **Load**. Greybeam lists the catalog integrations in your Snowflake account in the **Catalogs** list.
+  </Step>
+  <Step title="Enter the catalog settings">
+    Select the catalog, click **Edit**, and fill in the fields for your catalog type:
+
+    - **GLUE:** **AWS Account ID (Glue Catalog ID)**, **AWS Region**, **AWS Access Key**, **AWS Secret**.
+    - **REST:** **REST Endpoint**, **Warehouse Name**, **OAuth2 Client ID**, **OAuth2 Client Secret**.
+
+    All fields are required, except that you can leave a secret blank to keep the saved value when you edit. The **Catalog name (Snowflake catalog integration)** field must match the integration name in Snowflake.
+
+    Turn on **Active**, then click **Save**. An inactive catalog can't be used.
+  </Step>
+  <Step title="Test the connection">
+    Select the catalog and click **Test Catalog Connection**. Greybeam connects to the catalog and tries to list its tables. A success message means the credentials work.
+
+    Click **Test Snowflake Access** to check that Greybeam can reach the catalog's tables through Snowflake.
+  </Step>
+</Steps>
+
+## Load the Iceberg tables
+
+<Steps>
+  <Step title="Enable discovery for the database">
+    Open **Settings**, then **Database** under **Snowflake**. On the **Snowflake Databases** page, turn on **Load Tables** and **Load Iceberg Tables** for each database that holds Iceberg tables.
+  </Step>
+  <Step title="Load the tables">
+    On the **Catalogs** page, under **Load Iceberg Tables**, click **Load**. Greybeam finds the Iceberg tables in Snowflake and matches each one to its catalog table.
+  </Step>
+  <Step title="Check the details">
+    In [Objects Explorer](/platform/objects-explorer), open the table and go to the **Hydration** tab. The **Iceberg** card shows the **Catalog name**, **Catalog table name**, **External volume**, **Catalog namespace**, **Format version**, and **Partition spec ID**.
+  </Step>
+</Steps>
+
+## Choose where each table's data comes from
+
+On the **Iceberg** card, the **Data source** list has two options:
+
+- **Snowflake** — Greybeam loads the table through its standard hydration from Snowflake.
+- **Iceberg object storage** — Greybeam reads the table data directly from your object storage.
+
+Greybeam checks your catalog for the table's latest snapshot. If nothing changed, the check shows as skipped on the **Hydration Jobs** tab and Greybeam does nothing. If the snapshot is new, Greybeam picks up the change.
+
+## Choose how DuckDB serves the table
+
+For a table that uses **Iceberg object storage**, open the **Engines** tab. These settings decide how DuckDB reads the table.
+
+- **Read through the catalog** — Leave **Load Parquet files** off and **Conversion type** on `DISABLED`. DuckDB queries the table directly through your catalog. The DuckDB workers don't cache it.
+- **Load downloaded Parquet files** — Turn on **Load Parquet files**. Greybeam caches the table's files on the DuckDB workers, and DuckDB reads them from the cache.
+- **Convert to a DuckDB table** — Set **Conversion type** to `DUCKDB` or `DUCKLAKE`. Greybeam downloads the files, then converts them for DuckDB.
+
+When you download a table, **Iceberg download mode** sets how. **Direct files download** is the default. **DuckDB COPY session** is the alternative. `DUCKLAKE` conversion isn't available with **Direct files download**.
+
+## Tables with delete files
+
+Iceberg tables can store deletes as separate delete files: position deletes, equality deletes, or deletion vectors.
+
+- Tables served directly through the catalog aren't affected.
+- When Greybeam downloads a table that has delete files, it applies the deletes first. The cached table contains only the rows that are still live.
+- You don't need to change any setting for this.
+
+## Troubleshooting
+
+### Test Catalog Connection fails
+
+Check that the catalog is **Active**, the region or endpoint is right, and the credentials are current. For Glue, check that the access key's user has the policy above.
+
+### The table doesn't appear after loading
+
+Check that **Load Tables** and **Load Iceberg Tables** are on for the table's database. Check that the Greybeam role has `USAGE` on the database and schema.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Limitations" icon="triangle-exclamation" href="/reference/limitations">
+    Other reasons a query runs on Snowflake.
+  </Card>
+  <Card title="Objects Explorer" icon="table" href="/platform/objects-explorer">
+    Check a table's Iceberg and engine settings.
+  </Card>
+  <Card title="Settings" icon="gear" href="/platform/settings">
+    Catalogs and database discovery.
+  </Card>
+  <Card title="Hydration" icon="rotate" href="/how-it-works/hydration">
+    How Greybeam replicates and caches your tables.
+  </Card>
+</CardGroup>

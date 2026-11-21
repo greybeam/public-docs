@@ -1,0 +1,100 @@
+---
+title: "dbt"
+description: "Point dbt at Greybeam and choose which models build through it."
+icon: "diagram-project"
+---
+
+<Note>
+dbt support is in private beta. To join, contact Greybeam in your shared Slack channel.
+</Note>
+
+Connect dbt to Greybeam by changing the host in `profiles.yml`. Then choose which models build through Greybeam in the platform.
+
+## Connect dbt
+
+Use the `dbt-snowflake` adapter and set `host` to your compute endpoint. Keep your account, user, role, warehouse, and credentials.
+
+<Steps>
+  <Step title="Find your compute endpoint">
+    Copy it from **Settings** in the Greybeam platform. See [Find your compute endpoint](/get-started/compute-endpoint).
+  </Step>
+  <Step title="Edit profiles.yml">
+    Add `host` to the target:
+
+    ```yaml profiles.yml
+    my_profile:
+      target: dev
+      outputs:
+        dev:
+          type: snowflake
+          account: <account_identifier>
+          host: <compute-endpoint>
+          user: <user>
+          password: <password>
+          role: <role>
+          warehouse: <warehouse>
+          database: <database>
+          schema: <schema>
+    ```
+  </Step>
+  <Step title="Run dbt">
+    Run `dbt run`. Make sure your network allows dbt to reach the compute endpoint.
+  </Step>
+  <Step title="Check query history">
+    Open **Home** in the Greybeam platform. dbt queries show routing code `214` (dbt query). See [Query history](/platform/query-history).
+  </Step>
+</Steps>
+
+## How Greybeam groups dbt queries
+
+The **DBT projects** page in the platform organizes what dbt sends into three levels. Greybeam reads the project, target, and dbt version from the JSON comment that dbt adds to every query it runs.
+
+- **Project** — queries that share the same `project_name` in dbt's query comment. Queries with no `project_name` form one default project.
+- **Target** — each `target_name` in a project, such as `dev` or `prod`.
+- **Run** — the queries from one dbt invocation. dbt doesn't mark where a run starts or ends, so Greybeam works it out from the queries.
+
+<Warning>
+Keep dbt's default query comment. If you override `query-comment` in `dbt_project.yml`, keep the `app`, `dbt_version`, and `target_name` fields. Without them, Greybeam can't recognize your queries as dbt queries.
+</Warning>
+
+dbt's default comment doesn't include `project_name`, so those queries land in the default project. To group queries into named projects, add `project_name` to the comment.
+
+## Build a model through Greybeam
+
+Greybeam builds a model only when its target is enabled and the table is enabled or non-configured. Any other table builds in Snowflake as usual.
+
+<Steps>
+  <Step title="Run dbt once">
+    After the first run, your project, targets, and tables appear on the **DBT projects** page.
+  </Step>
+  <Step title="Enable the target">
+    On **DBT projects**, turn on the target you want, such as `prod`. Enabling a target lets its tables build through Greybeam. Turning it off sends every table in the target back to Snowflake.
+  </Step>
+  <Step title="Choose the tables">
+    Each table in an enabled target is in one of three states:
+
+    - **Enabled** tables build through Greybeam.
+    - **Non-configured** tables follow the target. They build through Greybeam while the target is enabled.
+    - **Disabled** tables always build in Snowflake.
+  </Step>
+</Steps>
+
+For the page's controls, including **Enable iceberg for all tables** and **Disable iceberg for all tables**, see [dbt projects](/platform/dbt-projects). You can also set a table's dbt option in [Objects Explorer](/platform/objects-explorer).
+
+## Iceberg tables
+
+Tables that build through Greybeam are created as Iceberg tables.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="DBT projects" icon="diagram-project" href="/platform/dbt-projects">
+    Enable targets and tables in the platform.
+  </Card>
+  <Card title="Routing codes" icon="list" href="/reference/routing-codes">
+    What each code means, including 214.
+  </Card>
+  <Card title="Drivers" icon="plug" href="/connect/drivers">
+    Connect other Snowflake clients.
+  </Card>
+</CardGroup>
