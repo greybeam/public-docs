@@ -1,53 +1,105 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mintlify Starter Kit",
+  "theme": "sequoia",
+  "name": "Greybeam",
+  "description": "Run your Snowflake workloads on DuckDB with Greybeam.",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#B4530A",
+    "light": "#FA9F42",
+    "dark": "#E8862A"
   },
-  "favicon": "/favicon.svg",
-  "navigation": {
-    "pages": [
-      {
-        "group": "Getting Started",
-        "pages": [
-          "index",
-          "quickstart"
-        ]
-      }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
+  "appearance": {
+    "default": "dark"
+  },
+  "background": {
+    "color": {
+      "dark": "#10100E",
+      "light": "#FFFFFF"
     }
   },
+  "fonts": {
+    "heading": {
+      "family": "TASA Orbiter",
+      "weight": 600
+    },
+    "body": {
+      "family": "Inter"
+    }
+  },
+  "styling": {
+    "eyebrows": "section",
+    "codeblocks": "system"
+  },
+  "favicon": "/favicon.svg",
   "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
+    "light": "/logo/dark.svg",
+    "dark": "/logo/light.svg",
+    "href": "https://greybeam.ai"
+  },
+  "navigation": {
+    "groups": [
+      {
+        "group": "Get started",
+        "pages": [
+          "index",
+          "get-started/onboarding",
+          "get-started/compute-endpoint",
+          "quickstart"
+        ]
+      },
+      {
+        "group": "Greybeam platform",
+        "pages": [
+          "platform/overview",
+          "platform/query-history",
+          "platform/query-details",
+          "platform/objects-explorer",
+          "platform/hydration-jobs",
+          "platform/analytics",
+          "platform/query-blacklist",
+          "platform/query-runner",
+          "platform/dbt-projects",
+          "platform/settings",
+          "platform/account-settings"
+        ]
+      },
+      {
+        "group": "Connect",
+        "pages": [
+          "connect/dbt",
+          "connect/bi-tools",
+          "connect/drivers"
+        ]
+      },
+      {
+        "group": "How it works",
+        "pages": [
+          "how-it-works/query-routing",
+          "how-it-works/hydration"
+        ]
+      },
+      {
+        "group": "Reference",
+        "pages": [
+          "reference/routing-codes",
+          "reference/sql-support",
+          "reference/external-tables",
+          "reference/limitations"
+        ]
+      },
+      {
+        "group": "Troubleshooting",
+        "pages": [
+          "troubleshooting/onboarding-verification"
+        ]
+      }
+    ]
   },
   "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:support@mintlify.com"
-      }
-    ],
     "primary": {
       "type": "button",
-      "label": "Dashboard",
-      "href": "https://app.mintlify.com"
+      "label": "Open platform",
+      "href": "https://demo.admin.greybeam.ai"
     }
   },
   "contextual": {
@@ -64,9 +116,7 @@
   },
   "footer": {
     "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
+      "website": "https://greybeam.ai"
     }
   }
 }
